@@ -1,5 +1,8 @@
+#include <asm/byteorder.h>
+#include <netinet/in.h>
 #include "architecture_specific.h"
 
+__attribute__((__may_alias__))
 void executeSystemCall(unsigned short value) {
 	/*asm volatile
 	(
@@ -17,7 +20,11 @@ void executeSystemCall(unsigned short value) {
 			0x4E, 0x80, 0x00, 0x20  // blr               # return control to program
 	};
 
-	*((unsigned short *) &assembly[2]) = readRealShort((unsigned char *) &value);
+	unsigned short realShort = readRealShort((unsigned char *) &value);
+	if (!isBigEndian()) {
+		realShort = htons(realShort);
+	}
+	memcpy(&assembly[2], &realShort, sizeof(short));
 
 	log_printf("[SYSTEM_CALL] Executing system call value 0x%04x...\n", value);
 	executeAssembly(assembly, sizeof(assembly));

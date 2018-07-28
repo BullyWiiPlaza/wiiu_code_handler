@@ -64,7 +64,7 @@ void storeInteger(const unsigned char *registerIndexPointer,
 			   getBytes(valueSize),
 			   (void *) addressPointer);
 
-	if (enableRealMemoryAccesses) {
+	if (realMemoryAccessesAreEnabled) {
 		*(int *) addressPointer = value;
 	}
 }
@@ -72,7 +72,8 @@ void storeInteger(const unsigned char *registerIndexPointer,
 void loadFloat(const unsigned char *registerIndexPointer, unsigned char *addressPointer) {
 	int registerIndex = *registerIndexPointer;
 	unsigned int value = readRealValue(VALUE_SIZE_THIRTY_TWO_BIT, addressPointer);
-	float floatValue = *(float *) &value;
+	float floatValue;
+	memcpy(&floatValue, &value, sizeof(int));
 	floatRegisters[registerIndex] = floatValue;
 	log_printf("Stored value: %.2f\n", floatRegisters[registerIndex]);
 }
@@ -83,7 +84,7 @@ void storeFloat(const unsigned char *registerIndexPointer, unsigned char *pointe
 	unsigned char *addressPointer = (unsigned char *) (long) readRealInteger(pointerToAddress);
 	log_printf("[STORE_FLOAT] Storing %.2f at address %p...\n", value, (void *) addressPointer);
 
-	if (enableRealMemoryAccesses) {
+	if (realMemoryAccessesAreEnabled) {
 		*(float *) addressPointer = value;
 	}
 }

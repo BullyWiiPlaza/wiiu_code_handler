@@ -2,7 +2,49 @@
 
 #include "general/endian.h"
 
-bool enableRealMemoryAccesses = false;
+bool realMemoryAccessesAreEnabled = false;
+
+unsigned long callAddress(uintptr_t realAddress, const unsigned int *arguments) {
+	typedef unsigned long functionType(int, int, int, int, int, int, int, int);
+	functionType *function = (functionType *) realAddress;
+	unsigned long returnValue = 0x1111111122222222;
+
+	if (realMemoryAccessesAreEnabled) {
+		// We count instead of incrementing an index variable because: operation on 'argumentIndex' may be undefined
+		returnValue = function(arguments[0], arguments[1],
+							   arguments[2], arguments[3],
+							   arguments[4], arguments[5],
+							   arguments[6], arguments[7]);
+	}
+
+	return returnValue;
+}
+
+uintptr_t searchForTemplate(const unsigned char *searchTemplate, unsigned int length,
+							uintptr_t address, uintptr_t endAddress,
+							int stepSize, unsigned short targetMatchIndex,
+							bool *templateFound) {
+	int matchesCount = 0;
+	for (uintptr_t currentAddress = address; currentAddress < endAddress; currentAddress += stepSize) {
+		int comparisonResult = 0;
+
+		if (realMemoryAccessesAreEnabled) {
+			comparisonResult = memcmp((const void *) currentAddress, (const void *) searchTemplate, (size_t) length);
+		}
+
+		if (comparisonResult == 0) {
+			matchesCount++;
+		}
+
+		if ((matchesCount - 1) == targetMatchIndex) {
+			*templateFound = true;
+			return currentAddress;
+		}
+	}
+
+	*templateFound = false;
+	return 0;
+}
 
 void incrementValue(int valueLength, unsigned int realIncrement, unsigned char *modifiableValue) {
 	switch (valueLength) {
@@ -32,7 +74,7 @@ void incrementValue(int valueLength, unsigned int realIncrement, unsigned char *
 void skipWriteMemory(unsigned char *address, unsigned char *value,
 					 int valueLength, unsigned char *stepSize,
 					 unsigned char *increment, unsigned char *iterationsCount) {
-	unsigned int realAddress = readRealInteger(address);
+	uintptr_t realAddress = readRealInteger(address);
 	unsigned short realIterationsCount = readRealShort(iterationsCount);
 	unsigned int realIncrement = readRealInteger(increment);
 	unsigned int realStepSize = readRealInteger(stepSize);
@@ -40,13 +82,13 @@ void skipWriteMemory(unsigned char *address, unsigned char *value,
 	memcpy(modifiableValue, value, sizeof(int));
 
 	for (int iterationIndex = 0; iterationIndex < realIterationsCount; iterationIndex++) {
-		int byteIndex = sizeof(int) - valueLength;
+		unsigned int byteIndex = sizeof(int) - valueLength;
 		for (; byteIndex < sizeof(int); byteIndex++) {
 			unsigned int *targetAddress = (unsigned int *) (((unsigned char *) realAddress) + byteIndex);
 			unsigned char byte = modifiableValue[byteIndex];
 			log_printf("[SKIP_WRITE]: *%p = 0x%x\n", (void *) targetAddress, byte);
 
-			if (enableRealMemoryAccesses) {
+			if (realMemoryAccessesAreEnabled) {
 				*targetAddress = byte;
 			}
 		}
@@ -57,23 +99,23 @@ void skipWriteMemory(unsigned char *address, unsigned char *value,
 }
 
 void writeString(unsigned char *address, unsigned char *value, int valueLength) {
-	unsigned int realAddress = readRealInteger(address);
+	uintptr_t realAddress = readRealInteger(address);
 	log_printf("[STRING_WRITE]: *%p = 0x%x {Length: %i}\n", (void *) realAddress, *(unsigned int *) value, valueLength);
 
-	if (enableRealMemoryAccesses) {
+	if (realMemoryAccessesAreEnabled) {
 		memcpy(address, value, (size_t) valueLength);
 	}
 }
 
 void writeValue(unsigned char *address, const unsigned char *value, int valueLength) {
-	int byteIndex = sizeof(int) - valueLength;
+	unsigned int byteIndex = sizeof(int) - valueLength;
 	for (; byteIndex < sizeof(int); byteIndex++) {
-		unsigned int *targetAddress = (unsigned int *) (((unsigned char *) readRealInteger(address)) + byteIndex);
+		uintptr_t targetAddress = (((uintptr_t) readRealInteger(address)) + byteIndex);
 		unsigned char byte = value[byteIndex];
 		log_printf("[RAM_WRITE]: *%p = 0x%x\n", (void *) targetAddress, byte);
 
-		if (enableRealMemoryAccesses) {
-			*targetAddress = byte;
+		if (realMemoryAccessesAreEnabled) {
+			*(unsigned char *) targetAddress = byte;
 		}
 	}
 }
@@ -81,11 +123,11 @@ void writeValue(unsigned char *address, const unsigned char *value, int valueLen
 bool compareValue(unsigned char *address, unsigned char *value,
 				  const enum ValueSize *valueSize, unsigned char *upperValue,
 				  int valueLength, enum ComparisonType comparisonType) {
-	unsigned int realAddress = readRealInteger(address);
-	unsigned int realValue = readRealInteger(value);
-	unsigned int realUpperLimit = readRealInteger(upperValue);
+	uintptr_t realAddress = readRealInteger(address);
+	uintptr_t realValue = readRealInteger(value);
+	uintptr_t realUpperLimit = readRealInteger(upperValue);
 
-	if (comparisonType != CODE_TYPE_IF_VALUE_BETWEEN) {
+	if (comparisonType != COMPARISON_TYPE_VALUE_BETWEEN) {
 		log_printf("[COMPARE]: *%p {comparison %i} %p {Last %i bytes}\n", (void *) realAddress, comparisonType,
 				   (void *) realValue, valueLength);
 	}
@@ -94,7 +136,7 @@ bool compareValue(unsigned char *address, unsigned char *value,
 
 	switch (valueLength) {
 		case sizeof(int):
-			if (enableRealMemoryAccesses) {
+			if (realMemoryAccessesAreEnabled) {
 				addressValue = readRealInteger((unsigned char *) realAddress);
 			}
 
@@ -102,7 +144,7 @@ bool compareValue(unsigned char *address, unsigned char *value,
 			break;
 
 		case sizeof(short):
-			if (enableRealMemoryAccesses) {
+			if (realMemoryAccessesAreEnabled) {
 				addressValue = readRealShort((unsigned char *) realAddress);
 			}
 
@@ -110,7 +152,7 @@ bool compareValue(unsigned char *address, unsigned char *value,
 			break;
 
 		case sizeof(char):
-			if (enableRealMemoryAccesses) {
+			if (realMemoryAccessesAreEnabled) {
 				addressValue = readRealByte((unsigned char *) realAddress);
 			}
 
@@ -136,9 +178,9 @@ bool compareValue(unsigned char *address, unsigned char *value,
 			break;
 	}
 
-	bool comparisonResult = 0;
+	int comparisonResult = 0;
 
-	if (enableRealMemoryAccesses) {
+	if (realMemoryAccessesAreEnabled) {
 		comparisonResult = memcmp((void *) realAddress, (void *) value, (size_t) valueLength) == 0;
 	}
 
@@ -169,23 +211,26 @@ bool compareValue(unsigned char *address, unsigned char *value,
 
 		case COMPARISON_TYPE_VALUE_BETWEEN:;
 			unsigned int readValue = readRealValue(*valueSize, address);
-			unsigned int lowerLimit = realValue;
+			uintptr_t lowerLimit = realValue;
 			log_printf("[COMPARE]: (*%p > %p) && (*%p < %p) {Last %i bytes}\n", (void *) realAddress,
 					   (void *) lowerLimit, (void *) realAddress, (void *) realUpperLimit, valueLength);
 			return readValue > lowerLimit && readValue < realUpperLimit;
 
 		default:
 			OSFatal("Unhandled comparison type");
+
+			// Dummy return
+			return false;
 	}
 }
 
-void executeAssembly(unsigned char *instructions, int size) {
+void executeAssembly(unsigned char *instructions, unsigned int size) {
 	unsigned int realInstructions = readRealInteger(instructions);
 	log_printf("[EXECUTE_ASSEMBLY]: 0x%08x... {Size: %i}\n", realInstructions, size);
 
-	if (enableRealMemoryAccesses) {
+	if (realMemoryAccessesAreEnabled) {
 		// Write the assembly to an executable code region
-		int destinationAddress = 0x10000000 - size;
+		uintptr_t destinationAddress = (0x10000000 - size);
 		kernelCopyData((unsigned char *) destinationAddress, instructions, size);
 
 		// Execute the assembly from there
@@ -200,28 +245,28 @@ void executeAssembly(unsigned char *instructions, int size) {
 
 void applyCorrupter(unsigned char *beginning, unsigned char *end, unsigned char *searchValue,
 					unsigned char *replacementValue) {
-	unsigned int *startAddress = (unsigned int *) readRealInteger(beginning);
-	unsigned int *endAddress = (unsigned int *) readRealInteger(end);
+	uintptr_t startAddress = readRealInteger(beginning);
+	uintptr_t endAddress = readRealInteger(end);
 	unsigned int realSearchValue = readRealInteger(searchValue);
 	unsigned int realReplacementValue = readRealInteger(replacementValue);
 
 	log_print("[CORRUPTER] Replacing values...\n");
 
-	unsigned int *currentAddress = startAddress;
-	for (; currentAddress < endAddress; currentAddress++) {
-		unsigned int readValue = 0;
+	uintptr_t currentAddress = startAddress;
+	for (; currentAddress < endAddress; currentAddress += sizeof(int)) {
+		uintptr_t readValue = 0;
 
-		log_printf("Reading value from address %p...\n", currentAddress);
-		if (enableRealMemoryAccesses) {
-			readValue = *currentAddress;
+		log_printf("Reading value from address %p...\n", (void *) currentAddress);
+		if (realMemoryAccessesAreEnabled) {
+			readValue = currentAddress;
 		}
 
-		log_printf("Read value is: %08x\n", readValue);
+		log_printf("Read value is: %p\n", (void *) readValue);
 
 		if (readValue == realSearchValue) {
 			log_printf("Replacing with %08x...\n", realReplacementValue);
-			if (enableRealMemoryAccesses) {
-				*currentAddress = realReplacementValue;
+			if (realMemoryAccessesAreEnabled) {
+				currentAddress = realReplacementValue;
 			}
 		} else {
 			log_print("Value differs...\n");
@@ -230,10 +275,10 @@ void applyCorrupter(unsigned char *beginning, unsigned char *end, unsigned char 
 }
 
 unsigned int readRealValue(enum ValueSize valueSize, unsigned char *pointerToAddress) {
-	unsigned char *addressPointer = (unsigned char *) readRealInteger(pointerToAddress);
+	unsigned char *addressPointer = (unsigned char *) (uintptr_t) readRealInteger(pointerToAddress);
 	log_printf("[GET_VALUE] Getting value from %p {Value Size: %i}...\n", (void *) addressPointer, getBytes(valueSize));
 
-	if (enableRealMemoryAccesses) {
+	if (realMemoryAccessesAreEnabled) {
 		switch (valueSize) {
 			case VALUE_SIZE_EIGHT_BIT:
 				return readRealByte(addressPointer);
@@ -255,17 +300,17 @@ unsigned int readRealValue(enum ValueSize valueSize, unsigned char *pointerToAdd
 	return 0x43219876;
 }
 
-unsigned int loadPointer(unsigned char *address, unsigned char *value) {
-	unsigned int realAddress = readRealInteger(address);
+uintptr_t loadPointer(unsigned char *address, unsigned char *value) {
+	uintptr_t realAddress = readRealInteger(address);
 	unsigned int rangeStartingAddress = readRealInteger(value);
 	unsigned int rangeEndingAddress = readRealInteger(value + sizeof(int));
-	unsigned int deReferenced = 0;
+	uintptr_t deReferenced = 0;
 
-	if (enableRealMemoryAccesses) {
-		deReferenced = *(unsigned int *) realAddress;
+	if (realMemoryAccessesAreEnabled) {
+		deReferenced = *(uintptr_t *) realAddress;
 	}
 
-	log_printf("[LOAD_POINTER] Is %08x between %08x and %08x?\n", deReferenced, rangeStartingAddress,
+	log_printf("[LOAD_POINTER] Is %p between %08x and %08x?\n", (void *) deReferenced, rangeStartingAddress,
 			   rangeEndingAddress);
 
 	if (deReferenced >= rangeStartingAddress && deReferenced <= rangeEndingAddress) {

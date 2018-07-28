@@ -8,6 +8,6 @@ void kernelCopyData(unsigned char *destination, unsigned char *source, int size)
 
 void OSFatal(const char *message) {
 	printf("FATAL: ");
-	printf(message);
+	puts(message);
 	exit(EXIT_FAILURE);
 }
