@@ -1,4 +1,4 @@
-#include <asm/byteorder.h>
+
 #include <netinet/in.h>
 #include "architecture_specific.h"
 
@@ -20,8 +20,8 @@ void executeSystemCall(unsigned short value) {
 			0x4E, 0x80, 0x00, 0x20  // blr               # return control to program
 	};
 
-	unsigned short realShort = readRealShort((unsigned char *) &value);
-	if (!isBigEndian()) {
+	unsigned short realShort = read_real_short((unsigned char *) &value);
+	if (!is_big_endian()) {
 		realShort = htons(realShort);
 	}
 	memcpy(&assembly[2], &realShort, sizeof(short));

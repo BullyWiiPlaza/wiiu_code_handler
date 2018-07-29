@@ -10,7 +10,7 @@ void initializeGeckoRegisters() {
 
 int getAddressIncrement(enum ValueSize valueSize) {
 	int valueIncrement = 0;
-	if (isBigEndian()) {
+	if (is_big_endian()) {
 		valueIncrement = sizeof(int);
 
 		switch (valueSize) {

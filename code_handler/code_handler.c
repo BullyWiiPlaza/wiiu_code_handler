@@ -2,7 +2,6 @@
 
 #include <limits.h>
 #include <stdbool.h>
-#include <asm/byteorder.h>
 #include <stdlib.h>
 #include <stdint.h>
 #include <netinet/in.h>
@@ -92,50 +91,55 @@ int handleProcedureCall(const unsigned char *codes, int bytesIndex) {
 	return bytesIndex;
 }
 
-void applySearchTemplateCodeType(const unsigned char *codes, int *length, int *bytesIndex) {
-	unsigned short targetMatchIndex = readRealShort(&codes[(*bytesIndex)]);
-	log_printf("Target Match Index: %i\n", targetMatchIndex);
-	(*bytesIndex) += sizeof(short);
-	unsigned int searchTemplateLength = codes[(*bytesIndex)];
-	log_printf("Search Template Length: %i\n", searchTemplateLength);
-	(*bytesIndex) += sizeof(char);
-	uintptr_t startAddress = (unsigned int) (readRealShort(&codes[(*bytesIndex)]) * 0x10000);
-	log_printf("Start Address: %p\n", (void *) (int *) startAddress);
-	(*bytesIndex) += sizeof(short);
-	uintptr_t endAddress = (unsigned int) (readRealShort(&codes[(*bytesIndex)]) * 0x10000);
-	log_printf("End Address: %p\n", (void *) (int *) endAddress);
-	(*bytesIndex) += sizeof(short);
-	const unsigned char *searchTemplate = &codes[(*bytesIndex)];
-	bool templateFound = false;
-	uintptr_t foundAddress = searchForTemplate(searchTemplate, searchTemplateLength, startAddress,
-											   endAddress, 1, targetMatchIndex, &templateFound);
-	log_printf("Template Found: %i\n", templateFound);
+void apply_search_template_code_type(const unsigned char *codes, int *length, int *bytes_index) {
+	unsigned short target_match_index = read_real_short(&codes[(*bytes_index)]);
+	log_printf("Target Match Index: %i\n", target_match_index);
+	(*bytes_index) += sizeof(short);
+	unsigned int search_template_length = codes[(*bytes_index)];
+	log_printf("Search Template Length: %i\n", search_template_length);
+	(*bytes_index) += sizeof(char);
+	uintptr_t start_address = (unsigned int) (read_real_short(&codes[(*bytes_index)]) * 0x10000);
+	log_printf("Start Address: %p\n", (void *) (int *) start_address);
+	(*bytes_index) += sizeof(short);
+	uintptr_t end_address = (unsigned int) (read_real_short(&codes[(*bytes_index)]) * 0x10000);
+	log_printf("End Address: %p\n", (void *) (int *) end_address);
+	(*bytes_index) += sizeof(short);
+	const unsigned char *search_template = &codes[(*bytes_index)];
+	bool template_found = false;
+	uintptr_t found_address = searchForTemplate(search_template, search_template_length, start_address,
+											   end_address, 1, target_match_index, &template_found);
+	log_printf("Template Found: %i\n", template_found);
 
 	// Code type header plus search template lines
-	unsigned char addressLoaderCodeLine[CODE_LINE_BYTES] = {CODE_TYPE_LOAD_POINTER_DIRECTLY, 0x00, 0x00, 0x00,
+	unsigned char address_loader_code_line[CODE_LINE_BYTES] = {CODE_TYPE_LOAD_POINTER_DIRECTLY, 0x00, 0x00, 0x00,
 															0x00, 0x00, 0x00, 0x00};
 
 	// Find the amount of bytes taken in total by the search template line(s)
-	int occupiedSearchTemplateLength = searchTemplateLength;
-	int remainder = searchTemplateLength % CODE_LINE_BYTES;
+	int occupied_search_template_length = search_template_length;
+	int remainder = search_template_length % CODE_LINE_BYTES;
 	if (remainder != 0) {
-		occupiedSearchTemplateLength += CODE_LINE_BYTES - remainder;
+		occupied_search_template_length += CODE_LINE_BYTES - remainder;
 	}
 
-	if (templateFound) {
-		log_printf("Found Address: %p\n", (void *) (int *) foundAddress);
+	if (template_found) {
+		log_printf("Found Address: %p\n", (void *) (int *) found_address);
 
 		// Get the byte order right
-		foundAddress = isBigEndian() ? foundAddress : htonl((uint32_t) foundAddress);
+		found_address = is_big_endian() ? found_address : htonl((uint32_t) found_address);
 	}
 
 	// Modify the code list by pasting the load pointer statement over the search code type
-	*(unsigned int *) (addressLoaderCodeLine + sizeof(int)) = (unsigned int) foundAddress;
-	memcpy((void *) codes, addressLoaderCodeLine, CODE_LINE_BYTES);
-	memcpy((void *) searchTemplate, searchTemplate + CODE_LINE_BYTES, (size_t) (*length));
-	(*length) -= occupiedSearchTemplateLength;
+	*(unsigned int *) (address_loader_code_line + sizeof(int)) = (unsigned int) found_address;
+	size_t address_loader_line_bytes_size = sizeof(address_loader_code_line);
+	memcpy((void *) codes, address_loader_code_line, address_loader_line_bytes_size);
 
-	(*bytesIndex) = 0;
+	// Delete the search template from the code list
+	const unsigned char *remaining_code_list = search_template + occupied_search_template_length;
+	size_t remaining_code_list_length = (size_t) (*length);
+	memcpy((void *) search_template, remaining_code_list, remaining_code_list_length - occupied_search_template_length);
+	(*length) -= occupied_search_template_length;
+
+	(*bytes_index) = 0;
 }
 
 void parseRegularCode(unsigned char *codes, const enum CodeType *codeType,
@@ -150,7 +154,7 @@ void parseRegularCode(unsigned char *codes, const enum CodeType *codeType,
 		case CODE_TYPE_STRING_WRITE:
 			(*bytesIndex)++;
 			unsigned char *valueBytesAddress = &codes[(*bytesIndex)];
-			(*valueBytes) = readRealShort(valueBytesAddress);
+			(*valueBytes) = read_real_short(valueBytesAddress);
 			(*bytesIndex) += 2;
 			break;
 
@@ -182,7 +186,7 @@ void parseRegularCode(unsigned char *codes, const enum CodeType *codeType,
 	if ((*pointer) == POINTER_POINTER) {
 		if (*codeType == CODE_TYPE_RAM_WRITE) {
 			(*address) -= sizeof(short);
-			log_printf("Offset: %p\n", (void *) (long) readRealShort((*address)));
+			log_printf("Offset: %p\n", (void *) (long) read_real_short((*address)));
 		} else {
 			log_printf("Offset: %p\n", (void *) (long) readRealInteger((*address)));
 		}
@@ -190,7 +194,7 @@ void parseRegularCode(unsigned char *codes, const enum CodeType *codeType,
 		if (loadedPointer != ILLEGAL_POINTER) {
 			log_print("Applying loaded pointer...\n");
 			if (*codeType == CODE_TYPE_RAM_WRITE) {
-				unsigned char *addressPointer = (unsigned char *) (readRealShort(*address) + loadedPointer);
+				unsigned char *addressPointer = (unsigned char *) (read_real_short(*address) + loadedPointer);
 				*address = (unsigned char *) &addressPointer;
 			} else {
 				*address += loadedPointer;
@@ -343,7 +347,7 @@ void runCodeHandlerInternal(unsigned char *codes, int codesLength) {
 				bytesIndex += sizeof(int);
 				bytesIndex += sizeof(int);
 				unsigned char *iterationsCount = &codes[2];
-				log_printf("Iterations count: %i\n", readRealShort(iterationsCount));
+				log_printf("Iterations count: %i\n", read_real_short(iterationsCount));
 
 				if (isLoadedPointerValid(&pointer)) {
 					skipWriteMemory(address, value, valueBytes, stepSize, increment, iterationsCount);
@@ -352,55 +356,64 @@ void runCodeHandlerInternal(unsigned char *codes, int codesLength) {
 
 			case CODE_TYPE_IF_EQUAL:
 				log_printf("### If equal ###\n");
-				parseConditionalCode(codes, &pointer, &valueSize, &bytesIndex, &address, &value, &valueBytes, &codesLength,
+				parseConditionalCode(codes, &pointer, &valueSize, &bytesIndex, &address, &value, &valueBytes,
+									 &codesLength,
 									 (enum ComparisonType) codeType);
 				break;
 
 			case CODE_TYPE_IF_NOT_EQUAL:
 				log_printf("### If not equal ###\n");
-				parseConditionalCode(codes, &pointer, &valueSize, &bytesIndex, &address, &value, &valueBytes, &codesLength,
+				parseConditionalCode(codes, &pointer, &valueSize, &bytesIndex, &address, &value, &valueBytes,
+									 &codesLength,
 									 (enum ComparisonType) codeType);
 				break;
 
 			case CODE_TYPE_IF_GREATER:
 				log_printf("### If greater than ###\n");
-				parseConditionalCode(codes, &pointer, &valueSize, &bytesIndex, &address, &value, &valueBytes, &codesLength,
+				parseConditionalCode(codes, &pointer, &valueSize, &bytesIndex, &address, &value, &valueBytes,
+									 &codesLength,
 									 (enum ComparisonType) codeType);
 				break;
 
 			case CODE_TYPE_IF_LESS:
 				log_printf("### If less than ###\n");
-				parseConditionalCode(codes, &pointer, &valueSize, &bytesIndex, &address, &value, &valueBytes, &codesLength,
+				parseConditionalCode(codes, &pointer, &valueSize, &bytesIndex, &address, &value, &valueBytes,
+									 &codesLength,
 									 (enum ComparisonType) codeType);
 				break;
 
 			case CODE_TYPE_IF_GREATER_THAN_OR_EQUAL:
 				log_printf("### If greater than or equal ###\n");
-				parseConditionalCode(codes, &pointer, &valueSize, &bytesIndex, &address, &value, &valueBytes, &codesLength,
+				parseConditionalCode(codes, &pointer, &valueSize, &bytesIndex, &address, &value, &valueBytes,
+									 &codesLength,
 									 (enum ComparisonType) codeType);
 				break;
 
 			case CODE_TYPE_IF_LESS_THAN_OR_EQUAL:
 				log_printf("### If less than or equal ###\n");
-				parseConditionalCode(codes, &pointer, &valueSize, &bytesIndex, &address, &value, &valueBytes, &codesLength,
+				parseConditionalCode(codes, &pointer, &valueSize, &bytesIndex, &address, &value, &valueBytes,
+									 &codesLength,
 									 (enum ComparisonType) codeType);
 				break;
 
 			case CODE_TYPE_AND:
 				log_printf("### Apply AND ###\n");
-				parseConditionalCode(codes, &pointer, &valueSize, &bytesIndex, &address, &value, &valueBytes, &codesLength,
+				parseConditionalCode(codes, &pointer, &valueSize, &bytesIndex, &address, &value, &valueBytes,
+									 &codesLength,
 									 (enum ComparisonType) codeType);
 				break;
 
 			case CODE_TYPE_OR:
 				log_printf("### Apply OR ###\n");
-				parseConditionalCode(codes, &pointer, &valueSize, &bytesIndex, &address, &value, &valueBytes, &codesLength,
+				parseConditionalCode(codes, &pointer, &valueSize, &bytesIndex, &address, &value, &valueBytes,
+									 &codesLength,
 									 (enum ComparisonType) codeType);
 				break;
 
 			case CODE_TYPE_IF_VALUE_BETWEEN:
 				log_printf("### If Value Between ###\n");
-				parseConditionalCode(codes, &pointer, &valueSize, &bytesIndex, &address, &value, &valueBytes, &codesLength,
+				parseConditionalCode(codes, &pointer, &valueSize, &bytesIndex, &address, &value, &valueBytes,
+									 &codesLength,
 									 (enum ComparisonType) codeType);
 				break;
 
@@ -557,7 +570,7 @@ void runCodeHandlerInternal(unsigned char *codes, int codesLength) {
 			case CODE_TYPE_EXECUTE_ASSEMBLY:
 				log_printf("### Execute Assembly ###\n");
 				bytesIndex++;
-				unsigned int assemblyLines = readRealShort(&codes[bytesIndex]);
+				unsigned int assemblyLines = read_real_short(&codes[bytesIndex]);
 				unsigned int assemblyBytesCount = assemblyLines * CODE_LINE_BYTES;
 				bytesIndex += sizeof(short);
 				bytesIndex += sizeof(int);
@@ -572,7 +585,7 @@ void runCodeHandlerInternal(unsigned char *codes, int codesLength) {
 				value = &codes[bytesIndex];
 				bytesIndex += sizeof(short);
 				bytesIndex += sizeof(int);
-				executeSystemCall(readRealShort(value));
+				executeSystemCall(read_real_short(value));
 				break;
 
 			case CODE_TYPE_TERMINATOR:
@@ -632,13 +645,13 @@ void runCodeHandlerInternal(unsigned char *codes, int codesLength) {
 					 GG, HH, II, JJ, KK, LL, MM, NN, ... = Bytes of the search template
 					 followed by anything using the loaded pointer or not
 					 F6PPPPXX YYYYZZZZ
-					GGHHIIJJ KKLLMMNN
+					 GGHHIIJJ KKLLMMNN
 					 ...
 					 D0000000 DEADCAFE
 				 */
 			case CODE_TYPE_SEARCH_TEMPLATE:
 				log_printf("### Search Template ###\n");
-				applySearchTemplateCodeType(codes, &codesLength, &bytesIndex);
+				apply_search_template_code_type(codes, &codesLength, &bytesIndex);
 
 				break;
 

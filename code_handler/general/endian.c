@@ -3,7 +3,7 @@
 #include <netinet/in.h>
 
 // Detect whether the system is using big endian byte order
-int isBigEndian() {
+int is_big_endian() {
 	union {
 		uint32_t integer;
 		char character[4];
@@ -13,7 +13,7 @@ int isBigEndian() {
 }
 
 unsigned int getBigEndian(unsigned int value) {
-	if (!isBigEndian()) {
+	if (!is_big_endian()) {
 		return htonl(value);
 	}
 
@@ -33,14 +33,14 @@ unsigned int readRealInteger(const unsigned char *value) {
 /*unsigned long long int getLong(const unsigned char *value) {
 	unsigned long longValue = *(unsigned long *) value;
 
-	if (!isBigEndian()) {
+	if (!is_big_endian()) {
 		longValue = swap_int64(longValue);
 	}
 
 	return longValue;
 }*/
 
-unsigned short readRealShort(const unsigned char *value) {
+unsigned short read_real_short(const unsigned char *value) {
 	unsigned int read = getBigEndian(*(unsigned int *) (value - (sizeof(int) - sizeof(short))));
 	read &= 0x0000FFFF;
 
@@ -56,7 +56,7 @@ unsigned char readRealByte(const unsigned char *value) {
 
 /* Used to get a big endian character pointer to an arbitrary int, short, char */
 unsigned char *getCharacterPointer(unsigned int *value, int valueSize) {
-	if (!isBigEndian()) {
+	if (!is_big_endian()) {
 		*value = htonl(*value);
 	}
 

@@ -53,9 +53,9 @@ void incrementValue(int valueLength, unsigned int realIncrement, unsigned char *
 			break;
 
 		case sizeof(short):;
-			short incrementedShortValue = readRealShort(modifiableValue);
+			short incrementedShortValue = read_real_short(modifiableValue);
 			incrementedShortValue += realIncrement;
-			incrementedShortValue = readRealShort((unsigned char *) &incrementedShortValue);
+			incrementedShortValue = read_real_short((unsigned char *) &incrementedShortValue);
 			memcpy(&modifiableValue[sizeof(int) - sizeof(short)], &incrementedShortValue, sizeof(short));
 			break;
 
@@ -75,7 +75,7 @@ void skipWriteMemory(unsigned char *address, unsigned char *value,
 					 int valueLength, unsigned char *stepSize,
 					 unsigned char *increment, unsigned char *iterationsCount) {
 	uintptr_t realAddress = readRealInteger(address);
-	unsigned short realIterationsCount = readRealShort(iterationsCount);
+	unsigned short realIterationsCount = read_real_short(iterationsCount);
 	unsigned int realIncrement = readRealInteger(increment);
 	unsigned int realStepSize = readRealInteger(stepSize);
 	unsigned char modifiableValue[sizeof(int)];
@@ -145,10 +145,10 @@ bool compareValue(unsigned char *address, unsigned char *value,
 
 		case sizeof(short):
 			if (realMemoryAccessesAreEnabled) {
-				addressValue = readRealShort((unsigned char *) realAddress);
+				addressValue = read_real_short((unsigned char *) realAddress);
 			}
 
-			realValue = readRealShort(value + sizeof(int) - sizeof(short));
+			realValue = read_real_short(value + sizeof(int) - sizeof(short));
 			break;
 
 		case sizeof(char):
@@ -284,7 +284,7 @@ unsigned int readRealValue(enum ValueSize valueSize, unsigned char *pointerToAdd
 				return readRealByte(addressPointer);
 
 			case VALUE_SIZE_SIXTEEN_BIT:
-				return readRealShort(addressPointer);
+				return read_real_short(addressPointer);
 
 			case VALUE_SIZE_THIRTY_TWO_BIT:
 				return readRealInteger(addressPointer);
