@@ -84,7 +84,7 @@ enum ComparisonType {
 	COMPARISON_TYPE_VALUE_BETWEEN = CODE_TYPE_IF_VALUE_BETWEEN,
 };
 
-int getBytes(enum ValueSize valueSize);
+int get_bytes(enum ValueSize value_size);
 
 enum Pointer {
 	POINTER_NO_POINTER = 0x00,

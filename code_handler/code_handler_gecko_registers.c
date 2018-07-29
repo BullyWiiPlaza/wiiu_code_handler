@@ -1,123 +1,122 @@
 #include "code_handler_gecko_registers.h"
 
-unsigned int integerRegisters[GECKO_REGISTERS_COUNT];
-float floatRegisters[GECKO_REGISTERS_COUNT];
+unsigned int integer_registers[GECKO_REGISTERS_COUNT];
+float float_registers[GECKO_REGISTERS_COUNT];
 
-void initializeGeckoRegisters() {
-	memset(integerRegisters, 0, sizeof(integerRegisters));
-	memset(floatRegisters, 0, sizeof(floatRegisters));
+void initialize_gecko_registers() {
+	memset(integer_registers, 0, sizeof(integer_registers));
+	memset(float_registers, 0, sizeof(float_registers));
 }
 
-int getAddressIncrement(enum ValueSize valueSize) {
-	int valueIncrement = 0;
+int get_address_increment(enum ValueSize value_size) {
+	int value_increment = 0;
 	if (is_big_endian()) {
-		valueIncrement = sizeof(int);
+		value_increment = sizeof(int);
 
-		switch (valueSize) {
+		switch (value_size) {
 			case VALUE_SIZE_EIGHT_BIT:
-				return valueIncrement - sizeof(char);
+				return value_increment - sizeof(char);
 
 			case VALUE_SIZE_SIXTEEN_BIT:
-				return valueIncrement - sizeof(short);
+				return value_increment - sizeof(short);
 
 			case VALUE_SIZE_THIRTY_TWO_BIT:
-				return valueIncrement - sizeof(int);
+				return value_increment - sizeof(int);
 		}
 
 		OSFatal("Value size unmatched");
 		return -1;
 	}
 
-	return valueIncrement;
+	return value_increment;
 }
 
-void loadInteger(const unsigned char *registerIndexPointer, enum ValueSize valueSize,
-				 unsigned char *addressPointer) {
+void load_integer(const unsigned char *registerIndexPointer, enum ValueSize valueSize,
+				  unsigned char *addressPointer) {
 	int registerIndex = *registerIndexPointer;
-	unsigned int value = readRealValue(valueSize, addressPointer);
-	integerRegisters[registerIndex] = value;
+	unsigned int value = read_real_value(valueSize, addressPointer);
+	integer_registers[registerIndex] = value;
 }
 
-void storeInteger(const unsigned char *registerIndexPointer,
-				  enum ValueSize valueSize, unsigned char *pointerToAddress) {
-	int addressIncrement = getAddressIncrement(valueSize);
-	int registerIndex = *registerIndexPointer;
-	unsigned char *targetValue = (unsigned char *) (integerRegisters + registerIndex);
+void store_integer(const unsigned char *register_index_pointer,
+				   enum ValueSize value_size, unsigned char *pointer_to_address) {
+	int address_increment = get_address_increment(value_size);
+	int register_index = *register_index_pointer;
+	unsigned char *target_value = (unsigned char *) (integer_registers + register_index);
 	unsigned int value = 0;
 
-	switch (valueSize) {
+	switch (value_size) {
 		case VALUE_SIZE_EIGHT_BIT:
-			value = *(targetValue + addressIncrement);
+			value = *(target_value + address_increment);
 			break;
 
 		case VALUE_SIZE_SIXTEEN_BIT:
-			value = *((unsigned short *) (targetValue + addressIncrement));
+			value = *((unsigned short *) (target_value + address_increment));
 			break;
 
 		case VALUE_SIZE_THIRTY_TWO_BIT:
-			value = *((unsigned int *) (targetValue + addressIncrement));
+			value = *((unsigned int *) (target_value + address_increment));
 			break;
 	}
 
-	unsigned char *addressPointer = (unsigned char *) (long) readRealInteger(pointerToAddress);
+	unsigned char *address_pointer = (unsigned char *) (long) read_real_integer(pointer_to_address);
 	log_printf("[STORE_INTEGER] Storing %p {Value Size: %i} at address %p...\n", (void *) (long) value,
-			   getBytes(valueSize),
-			   (void *) addressPointer);
+			   get_bytes(value_size), (void *) address_pointer);
 
-	if (realMemoryAccessesAreEnabled) {
-		*(int *) addressPointer = value;
+	if (real_memory_accesses_are_enabled) {
+		*(int *) address_pointer = value;
 	}
 }
 
-void loadFloat(const unsigned char *registerIndexPointer, unsigned char *addressPointer) {
-	int registerIndex = *registerIndexPointer;
-	unsigned int value = readRealValue(VALUE_SIZE_THIRTY_TWO_BIT, addressPointer);
+void load_float(const unsigned char *register_index_pointer, unsigned char *address_pointer) {
+	int register_index = *register_index_pointer;
+	unsigned int value = read_real_value(VALUE_SIZE_THIRTY_TWO_BIT, address_pointer);
 	float floatValue;
 	memcpy(&floatValue, &value, sizeof(int));
-	floatRegisters[registerIndex] = floatValue;
-	log_printf("Stored value: %.2f\n", floatRegisters[registerIndex]);
+	float_registers[register_index] = floatValue;
+	log_printf("Stored value: %.2f\n", float_registers[register_index]);
 }
 
-void storeFloat(const unsigned char *registerIndexPointer, unsigned char *pointerToAddress) {
-	int registerIndex = *registerIndexPointer;
-	float value = floatRegisters[registerIndex];
-	unsigned char *addressPointer = (unsigned char *) (long) readRealInteger(pointerToAddress);
-	log_printf("[STORE_FLOAT] Storing %.2f at address %p...\n", value, (void *) addressPointer);
+void store_float(const unsigned char *register_index_pointer, unsigned char *pointer_to_address) {
+	int register_index = *register_index_pointer;
+	float value = float_registers[register_index];
+	unsigned char *address_pointer = (unsigned char *) (long) read_real_integer(pointer_to_address);
+	log_printf("[STORE_FLOAT] Storing %.2f at address %p...\n", value, (void *) address_pointer);
 
-	if (realMemoryAccessesAreEnabled) {
-		*(float *) addressPointer = value;
+	if (real_memory_accesses_are_enabled) {
+		*(float *) address_pointer = value;
 	}
 }
 
-void applyFloatRegisterOperation(const unsigned char *firstRegisterIndexPointer,
-								 const unsigned char *secondRegisterIndexPointer,
-								 enum FloatRegisterOperation registerOperation) {
-	int firstRegisterIndex = *firstRegisterIndexPointer;
-	int secondRegisterIndex = *secondRegisterIndexPointer;
-	float firstRegisterValue = floatRegisters[firstRegisterIndex];
-	float secondRegisterValue = floatRegisters[secondRegisterIndex];
+void apply_float_register_operation(const unsigned char *first_register_index_pointer,
+									const unsigned char *second_register_index_pointer,
+									enum FloatRegisterOperation register_operation) {
+	int first_register_index = *first_register_index_pointer;
+	int second_register_index = *second_register_index_pointer;
+	float first_register_value = float_registers[first_register_index];
+	float second_register_value = float_registers[second_register_index];
 
-	switch (registerOperation) {
+	switch (register_operation) {
 		case FLOAT_REGISTER_OPERATION_ADDITION:
-			floatRegisters[firstRegisterIndex] = firstRegisterValue + secondRegisterValue;
+			float_registers[first_register_index] = first_register_value + second_register_value;
 			break;
 
 		case FLOAT_REGISTER_OPERATION_SUBTRACTION:
-			floatRegisters[firstRegisterIndex] = firstRegisterValue - secondRegisterValue;
+			float_registers[first_register_index] = first_register_value - second_register_value;
 			break;
 
 		case FLOAT_REGISTER_OPERATION_MULTIPLICATION:
-			floatRegisters[firstRegisterIndex] = firstRegisterValue * secondRegisterValue;
+			float_registers[first_register_index] = first_register_value * second_register_value;
 			break;
 
 		case FLOAT_REGISTER_OPERATION_DIVISION:
-			floatRegisters[firstRegisterIndex] = firstRegisterValue / secondRegisterValue;
+			float_registers[first_register_index] = first_register_value / second_register_value;
 			break;
 
 		case FLOAT_REGISTER_OPERATION_FLOAT_TO_INTEGER:
-			integerRegisters[secondRegisterIndex] = (unsigned int) firstRegisterValue;
-			log_printf("Integer register value: %f converted -> %d\n", firstRegisterValue,
-					   integerRegisters[secondRegisterIndex]);
+			integer_registers[second_register_index] = (unsigned int) first_register_value;
+			log_printf("Integer register value: %f converted -> %d\n", first_register_value,
+					   integer_registers[second_register_index]);
 			break;
 
 		default:
@@ -126,28 +125,28 @@ void applyFloatRegisterOperation(const unsigned char *firstRegisterIndexPointer,
 	}
 }
 
-void applyFloatDirectValueOperation(const unsigned char *firstRegisterIndexPointer,
-									unsigned char *valuePointer,
-									enum FloatDirectValueOperation directValueOperation) {
-	int registerIndex = *firstRegisterIndexPointer;
-	unsigned int currentValue = integerRegisters[registerIndex];
-	unsigned int value = readRealInteger(valuePointer);
+void applyFloat_direct_value_operation(const unsigned char *first_register_index_pointer,
+									   unsigned char *value_pointer,
+									   enum FloatDirectValueOperation direct_value_operation) {
+	int register_index = *first_register_index_pointer;
+	unsigned int current_value = integer_registers[register_index];
+	unsigned int value = read_real_integer(value_pointer);
 
-	switch (directValueOperation) {
+	switch (direct_value_operation) {
 		case FLOAT_DIRECT_VALUE_OPERATION_ADDITION:
-			integerRegisters[registerIndex] = currentValue + value;
+			integer_registers[register_index] = current_value + value;
 			break;
 
 		case FLOAT_DIRECT_VALUE_OPERATION_SUBTRACTION:
-			integerRegisters[registerIndex] = currentValue - value;
+			integer_registers[register_index] = current_value - value;
 			break;
 
 		case FLOAT_DIRECT_VALUE_OPERATION_DIVISION:
-			integerRegisters[registerIndex] = currentValue / value;
+			integer_registers[register_index] = current_value / value;
 			break;
 
 		case FLOAT_DIRECT_VALUE_OPERATION_MULTIPLICATION:
-			integerRegisters[registerIndex] = currentValue * value;
+			integer_registers[register_index] = current_value * value;
 			break;
 
 		default:
@@ -156,29 +155,29 @@ void applyFloatDirectValueOperation(const unsigned char *firstRegisterIndexPoint
 	}
 }
 
-void applyIntegerRegisterOperation(const unsigned char *firstRegisterIndexPointer,
-								   const unsigned char *secondRegisterIndexPointer,
-								   enum IntegerRegisterOperation registerOperation) {
-	int firstRegisterIndex = *firstRegisterIndexPointer;
-	int secondRegisterIndex = *secondRegisterIndexPointer;
-	unsigned int firstRegisterValue = integerRegisters[firstRegisterIndex];
-	unsigned int secondRegisterValue = integerRegisters[secondRegisterIndex];
+void apply_integer_register_operation(const unsigned char *first_register_index_pointer,
+									  const unsigned char *second_register_index_pointer,
+									  enum IntegerRegisterOperation register_operation) {
+	int first_register_index = *first_register_index_pointer;
+	int second_register_index = *second_register_index_pointer;
+	unsigned int first_register_value = integer_registers[first_register_index];
+	unsigned int second_register_value = integer_registers[second_register_index];
 
-	switch (registerOperation) {
+	switch (register_operation) {
 		case INTEGER_REGISTER_OPERATION_ADDITION:
-			integerRegisters[firstRegisterIndex] = firstRegisterValue + secondRegisterValue;
+			integer_registers[first_register_index] = first_register_value + second_register_value;
 			break;
 
 		case INTEGER_REGISTER_OPERATION_SUBTRACTION:
-			integerRegisters[firstRegisterIndex] = firstRegisterValue - secondRegisterValue;
+			integer_registers[first_register_index] = first_register_value - second_register_value;
 			break;
 
 		case INTEGER_REGISTER_OPERATION_MULTIPLICATION:
-			integerRegisters[firstRegisterIndex] = firstRegisterValue * secondRegisterValue;
+			integer_registers[first_register_index] = first_register_value * second_register_value;
 			break;
 
 		case INTEGER_REGISTER_OPERATION_DIVISION:
-			integerRegisters[firstRegisterIndex] = firstRegisterValue / secondRegisterValue;
+			integer_registers[first_register_index] = first_register_value / second_register_value;
 			break;
 
 		default:
@@ -187,28 +186,28 @@ void applyIntegerRegisterOperation(const unsigned char *firstRegisterIndexPointe
 	}
 }
 
-void applyIntegerDirectValueOperation(const unsigned char *firstRegisterIndexPointer,
-									  unsigned char *valuePointer,
-									  enum IntegerDirectValueOperation directValueOperation) {
-	int registerIndex = *firstRegisterIndexPointer;
-	unsigned int currentValue = integerRegisters[registerIndex];
-	unsigned int value = readRealInteger(valuePointer);
+void apply_integer_direct_value_operation(const unsigned char *first_register_index_pointer,
+										  unsigned char *value_pointer,
+										  enum IntegerDirectValueOperation direct_value_operation) {
+	int register_index = *first_register_index_pointer;
+	unsigned int current_value = integer_registers[register_index];
+	unsigned int value = read_real_integer(value_pointer);
 
-	switch (directValueOperation) {
+	switch (direct_value_operation) {
 		case INTEGER_DIRECT_VALUE_OPERATION_ADDITION:
-			integerRegisters[registerIndex] = currentValue + value;
+			integer_registers[register_index] = current_value + value;
 			break;
 
 		case INTEGER_DIRECT_VALUE_OPERATION_SUBTRACTION:
-			integerRegisters[registerIndex] = currentValue - value;
+			integer_registers[register_index] = current_value - value;
 			break;
 
 		case INTEGER_DIRECT_VALUE_OPERATION_MULTIPLICATION:
-			integerRegisters[registerIndex] = currentValue * value;
+			integer_registers[register_index] = current_value * value;
 			break;
 
 		case INTEGER_DIRECT_VALUE_OPERATION_DIVISION:
-			integerRegisters[registerIndex] = currentValue / value;
+			integer_registers[register_index] = current_value / value;
 			break;
 
 		default:

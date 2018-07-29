@@ -15,53 +15,53 @@
 #include "code_handler_gecko_registers.h"
 
 /* Do NOT reset during code handler executions */
-unsigned int codeHandlerExecutionsCount = 0;
+unsigned int code_handler_executions_count = 0;
 
 #define ILLEGAL_POINTER 0
 
 /* Reset during code handler executions */
-bool conditionFlag;
-uintptr_t loadedPointer;
-unsigned int timeDependenceDelay;
+bool condition_flag;
+uintptr_t loaded_pointer;
+unsigned int time_dependence_delay;
 
 #define CODE_LINE_BYTES 8
 
-void applyTimerReset() {
-	timeDependenceDelay = 0;
+void apply_timer_reset() {
+	time_dependence_delay = 0;
 }
 
-void applyTerminator() {
-	conditionFlag = false;
-	loadedPointer = ILLEGAL_POINTER;
+void apply_terminator() {
+	condition_flag = false;
+	loaded_pointer = ILLEGAL_POINTER;
 }
 
 #define MAXIMUM_ARGUMENTS_COUNT 8
 
-int handleProcedureCall(const unsigned char *codes, int bytesIndex) {
-	unsigned int lowerDestinationRegisterIndex = codes[bytesIndex];
-	log_printf("Lower destination register index: %i\n", lowerDestinationRegisterIndex);
-	if (lowerDestinationRegisterIndex > (GECKO_REGISTERS_COUNT - 1)) {
+int handle_procedure_call(const unsigned char *codes, int bytes_index) {
+	unsigned int lower_destination_register_index = codes[bytes_index];
+	log_printf("Lower destination register index: %i\n", lower_destination_register_index);
+	if (lower_destination_register_index > (GECKO_REGISTERS_COUNT - 1)) {
 		OSFatal("Lower destination register index exceeded");
 	}
 
-	bytesIndex += sizeof(char);
-	unsigned int upperDestinationRegisterIndex = codes[bytesIndex];
-	log_printf("Upper destination register index: %i\n", upperDestinationRegisterIndex);
-	if (upperDestinationRegisterIndex > (GECKO_REGISTERS_COUNT - 1)) {
+	bytes_index += sizeof(char);
+	unsigned int upper_destination_register_index = codes[bytes_index];
+	log_printf("Upper destination register index: %i\n", upper_destination_register_index);
+	if (upper_destination_register_index > (GECKO_REGISTERS_COUNT - 1)) {
 		OSFatal("Upper destination register index exceeded");
 	}
 
-	bytesIndex += sizeof(char);
-	unsigned int argumentsCount = codes[bytesIndex];
-	log_printf("Arguments Count: %i\n", argumentsCount);
-	if (argumentsCount > MAXIMUM_ARGUMENTS_COUNT) {
+	bytes_index += sizeof(char);
+	unsigned int arguments_count = codes[bytes_index];
+	log_printf("Arguments Count: %i\n", arguments_count);
+	if (arguments_count > MAXIMUM_ARGUMENTS_COUNT) {
 		OSFatal("Maximum arguments count exceeded");
 	}
 
-	bytesIndex += sizeof(char);
-	uintptr_t realAddress = readRealInteger(&codes[bytesIndex]);
-	log_printf("Function Address: %p\n", (void *) realAddress);
-	bytesIndex += sizeof(int);
+	bytes_index += sizeof(char);
+	uintptr_t real_address = read_real_integer(&codes[bytes_index]);
+	log_printf("Function Address: %p\n", (void *) real_address);
+	bytes_index += sizeof(int);
 	log_print("Allocating arguments...\n");
 	unsigned int *arguments = (unsigned int *) calloc(MAXIMUM_ARGUMENTS_COUNT, sizeof(int));
 
@@ -69,26 +69,27 @@ int handleProcedureCall(const unsigned char *codes, int bytesIndex) {
 		OSFatal("Allocating arguments failed");
 	} else {
 		log_print("Allocated!\n");
-		for (unsigned int argumentIndex = 0; argumentIndex < argumentsCount; argumentIndex++) {
-			arguments[argumentIndex] = readRealInteger(&codes[bytesIndex]);
-			bytesIndex += sizeof(int);
+		for (unsigned int argument_index = 0; argument_index < arguments_count; argument_index++) {
+			const unsigned char *argument_source = &codes[bytes_index];
+			arguments[argument_index] = read_real_integer(argument_source);
+			bytes_index += sizeof(int);
 		}
 
 		// If this is uneven we skip another 32-bit value since it wasn't an argument
-		if (argumentsCount % 2 != 0) {
-			bytesIndex += sizeof(int);
+		if (arguments_count % 2 != 0) {
+			bytes_index += sizeof(int);
 		}
 
-		unsigned long returnValue = callAddress(realAddress, arguments);
+		unsigned long returnValue = call_address(real_address, arguments);
 
 		log_printf("Return Value: %llx\n", (unsigned long long int) returnValue);
-		integerRegisters[lowerDestinationRegisterIndex] = (unsigned int) returnValue;
-		integerRegisters[upperDestinationRegisterIndex] = (unsigned int) (returnValue >> 32u);
+		integer_registers[lower_destination_register_index] = (unsigned int) returnValue;
+		integer_registers[upper_destination_register_index] = (unsigned int) (returnValue >> 32u);
 
 		free(arguments);
 	}
 
-	return bytesIndex;
+	return bytes_index;
 }
 
 void apply_search_template_code_type(const unsigned char *codes, int *length, int *bytes_index) {
@@ -106,13 +107,13 @@ void apply_search_template_code_type(const unsigned char *codes, int *length, in
 	(*bytes_index) += sizeof(short);
 	const unsigned char *search_template = &codes[(*bytes_index)];
 	bool template_found = false;
-	uintptr_t found_address = searchForTemplate(search_template, search_template_length, start_address,
-											   end_address, 1, target_match_index, &template_found);
+	uintptr_t found_address = search_for_template(search_template, search_template_length, start_address,
+												  end_address, 1, target_match_index, &template_found);
 	log_printf("Template Found: %i\n", template_found);
 
 	// Code type header plus search template lines
 	unsigned char address_loader_code_line[CODE_LINE_BYTES] = {CODE_TYPE_LOAD_POINTER_DIRECTLY, 0x00, 0x00, 0x00,
-															0x00, 0x00, 0x00, 0x00};
+															   0x00, 0x00, 0x00, 0x00};
 
 	// Find the amount of bytes taken in total by the search template line(s)
 	int occupied_search_template_length = search_template_length;
@@ -142,20 +143,20 @@ void apply_search_template_code_type(const unsigned char *codes, int *length, in
 	(*bytes_index) = 0;
 }
 
-void parseRegularCode(unsigned char *codes, const enum CodeType *codeType,
-					  enum Pointer *pointer, enum ValueSize *valueSize,
-					  int *bytesIndex, unsigned char **address,
-					  unsigned char **value, int *valueBytes) {
-	unsigned char pointerAndValueSize = codes[(*bytesIndex)];
-	(*pointer) = (enum Pointer) getUpperNibble(pointerAndValueSize);
+void parse_regular_code(unsigned char *codes, const enum CodeType *code_type,
+						enum Pointer *pointer, enum ValueSize *valueSize,
+						int *bytes_index, unsigned char **address,
+						unsigned char **value, int *value_bytes) {
+	unsigned char pointer_and_value_size = codes[(*bytes_index)];
+	(*pointer) = (enum Pointer) get_upper_nibble(pointer_and_value_size);
 	log_printf("Pointer: %i\n", (*pointer));
 
-	switch (*codeType) {
+	switch (*code_type) {
 		case CODE_TYPE_STRING_WRITE:
-			(*bytesIndex)++;
-			unsigned char *valueBytesAddress = &codes[(*bytesIndex)];
-			(*valueBytes) = read_real_short(valueBytesAddress);
-			(*bytesIndex) += 2;
+			(*bytes_index)++;
+			unsigned char *value_bytes_address = &codes[(*bytes_index)];
+			(*value_bytes) = read_real_short(value_bytes_address);
+			(*bytes_index) += 2;
 			break;
 
 		default:
@@ -166,474 +167,477 @@ void parseRegularCode(unsigned char *codes, const enum CodeType *codeType,
 		case IF_LESS:
 		case IF_GREATER_OR_EQUAL:
 		case IF_LESS_THAN_OR_EQUAL:*/
-			(*valueSize) = (enum ValueSize) getLowerNibble(pointerAndValueSize);
+			(*valueSize) = (enum ValueSize) get_lower_nibble(pointer_and_value_size);
 			log_printf("Value Size: %i\n", *valueSize);
 
-			if (*codeType == CODE_TYPE_INTEGER_OPERATION
-				|| *codeType == CODE_TYPE_FLOAT_OPERATION) {
-				(*valueBytes) = getBytes(VALUE_SIZE_THIRTY_TWO_BIT);
+			if (*code_type == CODE_TYPE_INTEGER_OPERATION
+				|| *code_type == CODE_TYPE_FLOAT_OPERATION) {
+				(*value_bytes) = get_bytes(VALUE_SIZE_THIRTY_TWO_BIT);
 			} else {
-				(*valueBytes) = getBytes(*valueSize);
+				(*value_bytes) = get_bytes(*valueSize);
 			}
 
-			(*bytesIndex) += 3;
+			(*bytes_index) += 3;
 			break;
 	}
 
-	(*address) = &codes[(*bytesIndex)];
-	(*bytesIndex) += sizeof(int);
+	(*address) = &codes[(*bytes_index)];
+	(*bytes_index) += sizeof(int);
 
 	if ((*pointer) == POINTER_POINTER) {
-		if (*codeType == CODE_TYPE_RAM_WRITE) {
+		if (*code_type == CODE_TYPE_RAM_WRITE) {
 			(*address) -= sizeof(short);
 			log_printf("Offset: %p\n", (void *) (long) read_real_short((*address)));
 		} else {
-			log_printf("Offset: %p\n", (void *) (long) readRealInteger((*address)));
+			log_printf("Offset: %p\n", (void *) (long) read_real_integer((*address)));
 		}
 		log_print("Checking loaded pointer...\n");
-		if (loadedPointer != ILLEGAL_POINTER) {
+		if (loaded_pointer != ILLEGAL_POINTER) {
 			log_print("Applying loaded pointer...\n");
-			if (*codeType == CODE_TYPE_RAM_WRITE) {
-				unsigned char *addressPointer = (unsigned char *) (read_real_short(*address) + loadedPointer);
-				*address = (unsigned char *) &addressPointer;
+			if (*code_type == CODE_TYPE_RAM_WRITE) {
+				unsigned char *address_pointer = (unsigned char *) (read_real_short(*address) + loaded_pointer);
+				*address = (unsigned char *) &address_pointer;
 			} else {
-				*address += loadedPointer;
+				*address += loaded_pointer;
 			}
 		} else {
 			log_print("Invalid pointer, not executing...\n");
 		}
-		if (realMemoryAccessesAreEnabled) {
-			log_printf("Address: %p\n", (void *) (long) readRealInteger((*address)));
+		if (real_memory_accesses_are_enabled) {
+			log_printf("Address: %p\n", (void *) (long) read_real_integer((*address)));
 		}
 	} else {
-		log_printf("Address: %p\n", (void *) (long) readRealInteger((*address)));
+		log_printf("Address: %p\n", (void *) (long) read_real_integer((*address)));
 	}
 
-	switch (*codeType) {
+	switch (*code_type) {
 		case CODE_TYPE_LOAD_POINTER:
-			(*value) = &codes[(*bytesIndex)];
-			log_printf("Range start: %p\n", (void *) (long) readRealInteger(*value));
+			(*value) = &codes[(*bytes_index)];
+			log_printf("Range start: %p\n", (void *) (long) read_real_integer(*value));
 			break;
 
 		default:
-			if ((*codeType == CODE_TYPE_RAM_WRITE) && (*pointer == POINTER_POINTER)) {
-				(*value) = &codes[(*bytesIndex - sizeof(int))];
+			if ((*code_type == CODE_TYPE_RAM_WRITE) && (*pointer == POINTER_POINTER)) {
+				(*value) = &codes[(*bytes_index - sizeof(int))];
 			} else {
-				(*value) = &codes[(*bytesIndex)];
+				(*value) = &codes[(*bytes_index)];
 			}
-			log_printf("Value: %p {Length: %i}\n", (void *) (long) readRealInteger(*value), *valueBytes);
+			log_printf("Value: %p {Length: %i}\n", (void *) (long) read_real_integer(*value), *value_bytes);
 			break;
 	}
 
-	switch (*codeType) {
+	switch (*code_type) {
 		case CODE_TYPE_STRING_WRITE:;
-			int increment = roundUp(*valueBytes, CODE_LINE_BYTES);
-			(*bytesIndex) += increment;
+			int increment = round_up(*value_bytes, CODE_LINE_BYTES);
+			(*bytes_index) += increment;
 			break;
 
 		default:
-			if (!(*codeType == CODE_TYPE_RAM_WRITE && *pointer == POINTER_POINTER)) {
-				(*bytesIndex) += sizeof(int) * 2;
+			if (!(*code_type == CODE_TYPE_RAM_WRITE && *pointer == POINTER_POINTER)) {
+				(*bytes_index) += sizeof(int) * 2;
 			}
 			break;
 	}
 }
 
-bool isLoadedPointerValid(const enum Pointer *pointer) {
-	return ((*pointer) == POINTER_POINTER && loadedPointer != ILLEGAL_POINTER) || (*pointer) == POINTER_NO_POINTER;
+bool is_loaded_pointer_valid(const enum Pointer *pointer) {
+	return ((*pointer) == POINTER_POINTER && loaded_pointer != ILLEGAL_POINTER)
+	|| (*pointer) == POINTER_NO_POINTER;
 }
 
 #define CODE_LINE_POINTER_MAXIMUM_INCREMENT INT_MAX
 
-int getCodeLinePointerIncrement(unsigned char *haystack, const unsigned char *needle, int maximumDistance) {
-	unsigned char *currentLocation = haystack;
-	size_t needleSize = sizeof(needle);
+int get_code_line_pointer_increment(unsigned char *haystack, const unsigned char *needle, int maximum_distance) {
+	unsigned char *current_location = haystack;
+	size_t needle_size = sizeof(needle);
 
-	while (currentLocation - haystack < maximumDistance) {
-		for (unsigned int needleIndex = 0; needleIndex < needleSize; needleIndex++) {
-			unsigned char needleCharacter = needle[needleIndex];
-			unsigned char currentCharacter = currentLocation[needleIndex];
-			if (currentCharacter != needleCharacter) {
-				goto incrementCurrentLocation;
+	while (current_location - haystack < maximum_distance) {
+		for (unsigned int needle_index = 0; needle_index < needle_size; needle_index++) {
+			unsigned char needle_character = needle[needle_index];
+			unsigned char current_character = current_location[needle_index];
+			if (current_character != needle_character) {
+				goto increment_current_location;
 			}
 		}
 
-		return (int) (currentLocation - haystack);
+		return (int) (current_location - haystack);
 
-		incrementCurrentLocation:
-		currentLocation++;
+		increment_current_location:
+		current_location++;
 	}
 
 	return CODE_LINE_POINTER_MAXIMUM_INCREMENT;
 }
 
-unsigned char terminatorCodeLine[] = {CODE_TYPE_TERMINATOR, 0x00, 0x00, 0x00, 0xDE, 0xAD, 0xCA, 0xFE};
-unsigned char resetTimerCodeLine[] = {CODE_TYPE_RESET_TIMER, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
+unsigned char terminator_code_line[] = {CODE_TYPE_TERMINATOR, 0x00, 0x00, 0x00, 0xDE, 0xAD, 0xCA, 0xFE};
+unsigned char reset_timer_code_line[] = {CODE_TYPE_RESET_TIMER, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
 
-void branchToAfterTerminator(unsigned char *codes, const int *codeLineIndex,
-							 int *bytesIndex, unsigned char *terminator) {
-	unsigned char *currentCodePosition = codes + (*bytesIndex);
+void branch_to_after_terminator(unsigned char *codes, const int *codeLineIndex,
+								int *bytes_index, unsigned char *terminator) {
+	unsigned char *current_code_position = codes + (*bytes_index);
 
-	int remainingCodeLength = (*codeLineIndex) - (*bytesIndex);
-	int increment = getCodeLinePointerIncrement(currentCodePosition, terminator, remainingCodeLength);
+	int remaining_code_length = (*codeLineIndex) - (*bytes_index);
+	int increment = get_code_line_pointer_increment(current_code_position, terminator, remaining_code_length);
 
 	if (increment == CODE_LINE_POINTER_MAXIMUM_INCREMENT) {
-		char messageBuffer[MESSAGE_BUFFER_SIZE] = "Condition not terminated";
-		setErrorMessageBuffer(messageBuffer, codes);
-		OSFatal(messageBuffer);
+		char message_buffer[MESSAGE_BUFFER_SIZE] = "Condition not terminated";
+		set_error_message_buffer(message_buffer, codes);
+		OSFatal(message_buffer);
 	} else {
 		log_printf("Skipping ahead by %p bytes...\n", (void *) (long) increment);
-		(*bytesIndex) += increment;
+		(*bytes_index) += increment;
 	}
 }
 
-void parseConditionalCode(unsigned char *codes, enum Pointer *pointer,
-						  enum ValueSize *valueSize, int *bytesIndex,
-						  unsigned char **address, unsigned char **value,
-						  int *valueBytes, int *length, enum ComparisonType comparisonType) {
-	enum CodeType codeType = CODE_TYPE_IF_NOT_EQUAL;
-	parseRegularCode(codes, &codeType, pointer, valueSize, bytesIndex, address, value, valueBytes);
-	unsigned char *upperValue = &codes[(*bytesIndex - sizeof(int))];
+void parse_conditional_code(unsigned char *codes, enum Pointer *pointer,
+							enum ValueSize *value_size, int *bytesIndex,
+							unsigned char **address, unsigned char **value,
+							int *value_bytes, int *length, enum ComparisonType comparison_type) {
+	enum CodeType code_type = CODE_TYPE_IF_NOT_EQUAL;
+	parse_regular_code(codes, &code_type, pointer, value_size, bytesIndex, address, value, value_bytes);
+	unsigned char *upper_value = &codes[(*bytesIndex - sizeof(int))];
 
-	if (isLoadedPointerValid(pointer)) {
-		conditionFlag = compareValue(*address, *value, valueSize, upperValue, *valueBytes, comparisonType);
-		log_printf("Comparison result: %i\n", conditionFlag);
-		branchToAfterTerminator(codes, length, bytesIndex, terminatorCodeLine);
+	if (is_loaded_pointer_valid(pointer)) {
+		condition_flag = compare_value(*address, *value, value_size, upper_value, *value_bytes, comparison_type);
+		log_printf("Comparison result: %i\n", condition_flag);
+		branch_to_after_terminator(codes, length, bytesIndex, terminator_code_line);
 	}
 }
 
-void runCodeHandlerInternal(unsigned char *codes, int codesLength) {
+void run_code_handler_internal(unsigned char *codes, int codes_length) {
 	// Keep running the code handler till all codes are handled
-	while (codesLength > 0) {
-		int bytesIndex = 0;
-		enum CodeType codeType = (enum CodeType) codes[bytesIndex];
-		log_printf("Code Type: 0x%x\n", codeType);
-		bytesIndex++;
+	while (codes_length > 0) {
+		int bytes_index = 0;
+		enum CodeType code_type = (enum CodeType) codes[bytes_index];
+		log_printf("Code Type: 0x%x\n", code_type);
+		bytes_index++;
 
 		enum Pointer pointer;
-		enum ValueSize valueSize;
+		enum ValueSize value_size;
 		unsigned char *address;
 		unsigned char *value;
-		int valueBytes;
+		int value_bytes;
 
-		switch (codeType) {
+		switch (code_type) {
 			case CODE_TYPE_RAM_WRITE:
 				log_printf("### RAM Write ###\n");
-				parseRegularCode(codes, &codeType, &pointer, &valueSize, &bytesIndex, &address, &value, &valueBytes);
+				parse_regular_code(codes, &code_type, &pointer, &value_size, &bytes_index, &address, &value, &value_bytes);
 
-				if (isLoadedPointerValid(&pointer)) {
-					writeValue(address, value, valueBytes);
+				if (is_loaded_pointer_valid(&pointer)) {
+					write_value(address, value, value_bytes);
 				}
 				break;
 
 			case CODE_TYPE_STRING_WRITE:
 				log_printf("### String Write ###\n");
-				parseRegularCode(codes, &codeType, &pointer, &valueSize, &bytesIndex, &address, &value, &valueBytes);
+				parse_regular_code(codes, &code_type, &pointer, &value_size, &bytes_index, &address, &value, &value_bytes);
 
-				if (isLoadedPointerValid(&pointer)) {
-					writeString(address, value, valueBytes);
+				if (is_loaded_pointer_valid(&pointer)) {
+					write_string(address, value, value_bytes);
 				}
 				break;
 
 			case CODE_TYPE_SKIP_WRITE:
 				log_printf("### Skip Write ###\n");
-				parseRegularCode(codes, &codeType, &pointer, &valueSize, &bytesIndex, &address, &value, &valueBytes);
-				bytesIndex -= sizeof(int);
-				unsigned char *stepSize = &codes[bytesIndex];
-				log_printf("Step size: %p\n", (void *) (long) readRealInteger(stepSize));
-				bytesIndex += sizeof(int);
-				unsigned char *increment = &codes[bytesIndex];
-				log_printf("Value increment: %p\n", (void *) (long) readRealInteger(increment));
-				bytesIndex += sizeof(int);
-				bytesIndex += sizeof(int);
-				unsigned char *iterationsCount = &codes[2];
-				log_printf("Iterations count: %i\n", read_real_short(iterationsCount));
+				parse_regular_code(codes, &code_type, &pointer, &value_size, &bytes_index, &address, &value, &value_bytes);
+				bytes_index -= sizeof(int);
+				unsigned char *step_size = &codes[bytes_index];
+				log_printf("Step size: %p\n", (void *) (long) read_real_integer(step_size));
+				bytes_index += sizeof(int);
+				unsigned char *increment = &codes[bytes_index];
+				log_printf("Value increment: %p\n", (void *) (long) read_real_integer(increment));
+				bytes_index += sizeof(int);
+				bytes_index += sizeof(int);
+				unsigned char *iterations_count = &codes[2];
+				log_printf("Iterations count: %i\n", read_real_short(iterations_count));
 
-				if (isLoadedPointerValid(&pointer)) {
-					skipWriteMemory(address, value, valueBytes, stepSize, increment, iterationsCount);
+				if (is_loaded_pointer_valid(&pointer)) {
+					skip_write_memory(address, value, value_bytes, step_size, increment, iterations_count);
 				}
 				break;
 
 			case CODE_TYPE_IF_EQUAL:
 				log_printf("### If equal ###\n");
-				parseConditionalCode(codes, &pointer, &valueSize, &bytesIndex, &address, &value, &valueBytes,
-									 &codesLength,
-									 (enum ComparisonType) codeType);
+				parse_conditional_code(codes, &pointer, &value_size, &bytes_index, &address, &value, &value_bytes,
+									   &codes_length, (enum ComparisonType) code_type);
 				break;
 
 			case CODE_TYPE_IF_NOT_EQUAL:
 				log_printf("### If not equal ###\n");
-				parseConditionalCode(codes, &pointer, &valueSize, &bytesIndex, &address, &value, &valueBytes,
-									 &codesLength,
-									 (enum ComparisonType) codeType);
+				parse_conditional_code(codes, &pointer, &value_size, &bytes_index, &address, &value, &value_bytes,
+									   &codes_length,
+									   (enum ComparisonType) code_type);
 				break;
 
 			case CODE_TYPE_IF_GREATER:
 				log_printf("### If greater than ###\n");
-				parseConditionalCode(codes, &pointer, &valueSize, &bytesIndex, &address, &value, &valueBytes,
-									 &codesLength,
-									 (enum ComparisonType) codeType);
+				parse_conditional_code(codes, &pointer, &value_size, &bytes_index, &address, &value, &value_bytes,
+									   &codes_length,
+									   (enum ComparisonType) code_type);
 				break;
 
 			case CODE_TYPE_IF_LESS:
 				log_printf("### If less than ###\n");
-				parseConditionalCode(codes, &pointer, &valueSize, &bytesIndex, &address, &value, &valueBytes,
-									 &codesLength,
-									 (enum ComparisonType) codeType);
+				parse_conditional_code(codes, &pointer, &value_size, &bytes_index, &address, &value, &value_bytes,
+									   &codes_length,
+									   (enum ComparisonType) code_type);
 				break;
 
 			case CODE_TYPE_IF_GREATER_THAN_OR_EQUAL:
 				log_printf("### If greater than or equal ###\n");
-				parseConditionalCode(codes, &pointer, &valueSize, &bytesIndex, &address, &value, &valueBytes,
-									 &codesLength,
-									 (enum ComparisonType) codeType);
+				parse_conditional_code(codes, &pointer, &value_size, &bytes_index, &address, &value, &value_bytes,
+									   &codes_length,
+									   (enum ComparisonType) code_type);
 				break;
 
 			case CODE_TYPE_IF_LESS_THAN_OR_EQUAL:
 				log_printf("### If less than or equal ###\n");
-				parseConditionalCode(codes, &pointer, &valueSize, &bytesIndex, &address, &value, &valueBytes,
-									 &codesLength,
-									 (enum ComparisonType) codeType);
+				parse_conditional_code(codes, &pointer, &value_size, &bytes_index, &address, &value, &value_bytes,
+									   &codes_length,
+									   (enum ComparisonType) code_type);
 				break;
 
 			case CODE_TYPE_AND:
 				log_printf("### Apply AND ###\n");
-				parseConditionalCode(codes, &pointer, &valueSize, &bytesIndex, &address, &value, &valueBytes,
-									 &codesLength,
-									 (enum ComparisonType) codeType);
+				parse_conditional_code(codes, &pointer, &value_size, &bytes_index, &address, &value, &value_bytes,
+									   &codes_length,
+									   (enum ComparisonType) code_type);
 				break;
 
 			case CODE_TYPE_OR:
 				log_printf("### Apply OR ###\n");
-				parseConditionalCode(codes, &pointer, &valueSize, &bytesIndex, &address, &value, &valueBytes,
-									 &codesLength,
-									 (enum ComparisonType) codeType);
+				parse_conditional_code(codes, &pointer, &value_size, &bytes_index, &address, &value, &value_bytes,
+									   &codes_length,
+									   (enum ComparisonType) code_type);
 				break;
 
 			case CODE_TYPE_IF_VALUE_BETWEEN:
 				log_printf("### If Value Between ###\n");
-				parseConditionalCode(codes, &pointer, &valueSize, &bytesIndex, &address, &value, &valueBytes,
-									 &codesLength,
-									 (enum ComparisonType) codeType);
+				parse_conditional_code(codes, &pointer, &value_size, &bytes_index, &address, &value, &value_bytes,
+									   &codes_length,
+									   (enum ComparisonType) code_type);
 				break;
 
 			case CODE_TYPE_ADD_TIME_DEPENDENCE:
 				log_printf("### Add Time Dependence ###\n");
-				bytesIndex += sizeof(int) - sizeof(char);
-				value = &codes[bytesIndex];
-				timeDependenceDelay = readRealInteger(value);
-				log_printf("[ADD_TIME_DEPENDENCE] %i\n", timeDependenceDelay);
+				bytes_index += sizeof(int) - sizeof(char);
+				value = &codes[bytes_index];
+				time_dependence_delay = read_real_integer(value);
+				log_printf("[ADD_TIME_DEPENDENCE] %i\n", time_dependence_delay);
 
-				if (timeDependenceDelay != 0 && codeHandlerExecutionsCount % timeDependenceDelay != 0) {
-					branchToAfterTerminator(codes, &codesLength, &bytesIndex, resetTimerCodeLine);
+				if (time_dependence_delay != 0 && code_handler_executions_count % time_dependence_delay != 0) {
+					branch_to_after_terminator(codes, &codes_length, &bytes_index, reset_timer_code_line);
 				} else {
-					log_printf("Not branching: Executions count: %i\n", codeHandlerExecutionsCount);
+					log_printf("Not branching: Executions count: %i\n", code_handler_executions_count);
 				}
 
-				bytesIndex += sizeof(int);
+				bytes_index += sizeof(int);
 				break;
 
 			case CODE_TYPE_RESET_TIMER:
 				log_printf("### Reset Timer ###\n");
-				bytesIndex += sizeof(resetTimerCodeLine) - 1;
-				applyTimerReset();
+				bytes_index += sizeof(reset_timer_code_line) - 1;
+				apply_timer_reset();
 				log_print("[RESET_TIMER] Executed\n");
 				break;
 
 			case CODE_TYPE_LOAD_INTEGER:
 				log_printf("### Load Integer ###\n");
-				parseRegularCode(codes, &codeType, &pointer, &valueSize, &bytesIndex, &address, &value, &valueBytes);
-				int excessiveBytes = sizeof(int) * 2;
-				unsigned char *registerIndex = &codes[bytesIndex - sizeof(int) - excessiveBytes - sizeof(char)];
-				log_printf("Register index: %i\n", *registerIndex);
-				bytesIndex -= excessiveBytes;
-				loadInteger(registerIndex, valueSize, address);
+				parse_regular_code(codes, &code_type, &pointer, &value_size, &bytes_index, &address, &value, &value_bytes);
+				int excessive_bytes = sizeof(int) * 2;
+				unsigned char *register_index = &codes[bytes_index - sizeof(int) - excessive_bytes - sizeof(char)];
+				log_printf("Register index: %i\n", *register_index);
+				bytes_index -= excessive_bytes;
+				load_integer(register_index, value_size, address);
 				break;
 
 			case CODE_TYPE_STORE_INTEGER:
 				log_printf("### Store Integer ###\n");
-				parseRegularCode(codes, &codeType, &pointer, &valueSize, &bytesIndex, &address, &value, &valueBytes);
-				excessiveBytes = sizeof(int) * 2;
-				registerIndex = &codes[bytesIndex - sizeof(int) - excessiveBytes - sizeof(char)];
-				log_printf("Register index: %i\n", *registerIndex);
-				bytesIndex -= excessiveBytes;
-				storeInteger(registerIndex, valueSize, address);
+				parse_regular_code(codes, &code_type, &pointer, &value_size, &bytes_index, &address, &value, &value_bytes);
+				excessive_bytes = sizeof(int) * 2;
+				register_index = &codes[bytes_index - sizeof(int) - excessive_bytes - sizeof(char)];
+				log_printf("Register index: %i\n", *register_index);
+				bytes_index -= excessive_bytes;
+				store_integer(register_index, value_size, address);
 				break;
 
 			case CODE_TYPE_LOAD_FLOAT:
 				log_printf("### Load Float ###\n");
-				parseRegularCode(codes, &codeType, &pointer, &valueSize, &bytesIndex, &address, &value, &valueBytes);
-				excessiveBytes = sizeof(int) * 2;
-				registerIndex = &codes[bytesIndex - sizeof(int) - excessiveBytes - sizeof(char)];
-				log_printf("Register index: %i\n", *registerIndex);
-				bytesIndex -= excessiveBytes;
-				loadFloat(registerIndex, address);
+				parse_regular_code(codes, &code_type, &pointer, &value_size, &bytes_index, &address, &value, &value_bytes);
+				excessive_bytes = sizeof(int) * 2;
+				register_index = &codes[bytes_index - sizeof(int) - excessive_bytes - sizeof(char)];
+				log_printf("Register index: %i\n", *register_index);
+				bytes_index -= excessive_bytes;
+				load_float(register_index, address);
 				break;
 
 			case CODE_TYPE_STORE_FLOAT:
 				log_printf("### Store Float ###\n");
-				parseRegularCode(codes, &codeType, &pointer, &valueSize, &bytesIndex, &address, &value, &valueBytes);
-				excessiveBytes = sizeof(int) * 2;
-				registerIndex = &codes[bytesIndex - sizeof(int) - excessiveBytes - sizeof(char)];
-				log_printf("Register index: %i\n", *registerIndex);
-				bytesIndex -= excessiveBytes;
-				storeFloat(registerIndex, address);
+				parse_regular_code(codes, &code_type, &pointer, &value_size, &bytes_index, &address, &value, &value_bytes);
+				excessive_bytes = sizeof(int) * 2;
+				register_index = &codes[bytes_index - sizeof(int) - excessive_bytes - sizeof(char)];
+				log_printf("Register index: %i\n", *register_index);
+				bytes_index -= excessive_bytes;
+				store_float(register_index, address);
 				break;
 
 			case CODE_TYPE_INTEGER_OPERATION:
 				log_printf("### Integer Operation ###\n");
-				parseRegularCode(codes, &codeType, &pointer, &valueSize, &bytesIndex, &address, &value, &valueBytes);
-				excessiveBytes = sizeof(int) * 2;
-				int integerOperationIndex = bytesIndex - sizeof(int) - excessiveBytes - sizeof(char) - 2;
-				unsigned char *integerOperationPointer = &codes[integerOperationIndex];
-				unsigned char *integerDestinationRegisterPointer = &codes[integerOperationIndex + 1];
-				unsigned char *integerSecondOperandRegisterPointer = &codes[integerOperationIndex + 2];
-				int integerOperationType = *integerOperationPointer;
+				parse_regular_code(codes, &code_type, &pointer, &value_size, &bytes_index, &address, &value, &value_bytes);
+				excessive_bytes = sizeof(int) * 2;
+				int integer_operation_index = bytes_index - sizeof(int) - excessive_bytes - sizeof(char) - 2;
+				unsigned char *integer_operation_pointer = &codes[integer_operation_index];
+				unsigned char *integer_destination_register_pointer = &codes[integer_operation_index + 1];
+				unsigned char *integer_second_operand_register_pointer = &codes[integer_operation_index + 2];
+				int integer_operation_type = *integer_operation_pointer;
 
-				if (integerOperationType > INTEGER_REGISTER_OPERATION_DIVISION) {
-					enum IntegerDirectValueOperation directValueOperation = (enum IntegerDirectValueOperation) integerOperationType;
-					applyIntegerDirectValueOperation(integerDestinationRegisterPointer, address, directValueOperation);
+				if (integer_operation_type > INTEGER_REGISTER_OPERATION_DIVISION) {
+					enum IntegerDirectValueOperation direct_value_operation = (enum IntegerDirectValueOperation) integer_operation_type;
+					apply_integer_direct_value_operation(integer_destination_register_pointer, address,
+														 direct_value_operation);
 				} else {
-					enum IntegerRegisterOperation registerOperation = (enum IntegerRegisterOperation) integerOperationType;
-					applyIntegerRegisterOperation(integerDestinationRegisterPointer,
-												  integerSecondOperandRegisterPointer,
-												  registerOperation);
+					enum IntegerRegisterOperation register_operation = (enum IntegerRegisterOperation) integer_operation_type;
+					apply_integer_register_operation(integer_destination_register_pointer,
+													 integer_second_operand_register_pointer,
+													 register_operation);
 				}
 
-				bytesIndex -= sizeof(int) * 2;
+				bytes_index -= sizeof(int) * 2;
 
 				break;
 
 			case CODE_TYPE_FLOAT_OPERATION:
 				log_printf("### Float Operation ###\n");
-				parseRegularCode(codes, &codeType, &pointer, &valueSize, &bytesIndex, &address, &value, &valueBytes);
-				excessiveBytes = sizeof(int) * 2;
-				int floatOperationIndex = bytesIndex - sizeof(int) - excessiveBytes - sizeof(char) - 2;
-				unsigned char *floatOperationPointer = &codes[floatOperationIndex];
-				unsigned char *floatDestinationRegisterPointer = &codes[floatOperationIndex + 1];
-				unsigned char *floatSecondOperandRegisterPointer = &codes[floatOperationIndex + 2];
-				int floatOperationType = *floatOperationPointer;
+				parse_regular_code(codes, &code_type, &pointer, &value_size, &bytes_index, &address, &value, &value_bytes);
+				excessive_bytes = sizeof(int) * 2;
+				int float_operation_index = bytes_index - sizeof(int) - excessive_bytes - sizeof(char) - 2;
+				unsigned char *float_operation_pointer = &codes[float_operation_index];
+				unsigned char *float_destination_register_pointer = &codes[float_operation_index + 1];
+				unsigned char *float_second_operand_register_pointer = &codes[float_operation_index + 2];
+				int float_operation_type = *float_operation_pointer;
 
-				if (floatOperationType > FLOAT_REGISTER_OPERATION_DIVISION &&
-					floatOperationType < FLOAT_REGISTER_OPERATION_FLOAT_TO_INTEGER) {
-					enum FloatDirectValueOperation directValueOperation = (enum FloatDirectValueOperation) floatOperationType;
-					applyFloatDirectValueOperation(floatDestinationRegisterPointer, address, directValueOperation);
+				if (float_operation_type > FLOAT_REGISTER_OPERATION_DIVISION &&
+					float_operation_type < FLOAT_REGISTER_OPERATION_FLOAT_TO_INTEGER) {
+					enum FloatDirectValueOperation direct_value_operation = (enum FloatDirectValueOperation) float_operation_type;
+					applyFloat_direct_value_operation(float_destination_register_pointer, address,
+													  direct_value_operation);
 				} else {
-					enum FloatRegisterOperation registerOperation = (enum FloatRegisterOperation) floatOperationType;
-					applyFloatRegisterOperation(floatDestinationRegisterPointer, floatSecondOperandRegisterPointer,
-												registerOperation);
+					enum FloatRegisterOperation register_operation = (enum FloatRegisterOperation) float_operation_type;
+					apply_float_register_operation(float_destination_register_pointer,
+												   float_second_operand_register_pointer,
+												   register_operation);
 				}
 
-				bytesIndex -= sizeof(int) * 2;
+				bytes_index -= sizeof(int) * 2;
 				break;
 
 			case CODE_TYPE_FILL_MEMORY_AREA:
 				log_printf("### Fill Memory Area ###\n");
-				parseRegularCode(codes, &codeType, &pointer, &valueSize, &bytesIndex, &address, &value, &valueBytes);
-				int offset = readRealInteger(&codes[bytesIndex - sizeof(int)]);
+				parse_regular_code(codes, &code_type, &pointer, &value_size, &bytes_index, &address, &value, &value_bytes);
+				int offset = read_real_integer(&codes[bytes_index - sizeof(int)]);
 				log_printf("Offset: %p\n", (void *) (long) offset);
-				if (isLoadedPointerValid(&pointer)) {
-					unsigned int stepSizeInt = 4;
-					stepSize = getCharacterPointer(&stepSizeInt, sizeof(int));
-					unsigned int incrementInt = 0;
-					increment = getCharacterPointer(&incrementInt, sizeof(int));
-					unsigned int iterationsCountInt = offset / sizeof(int);
-					iterationsCount = getCharacterPointer(&iterationsCountInt, sizeof(short));
-					skipWriteMemory(address, value, sizeof(int), stepSize, increment, iterationsCount);
+				if (is_loaded_pointer_valid(&pointer)) {
+					unsigned int step_size_int = 4;
+					step_size = get_character_pointer(&step_size_int, sizeof(int));
+					unsigned int increment_int = 0;
+					increment = get_character_pointer(&increment_int, sizeof(int));
+					unsigned int iterations_count_int = offset / sizeof(int);
+					iterations_count = get_character_pointer(&iterations_count_int, sizeof(short));
+					skip_write_memory(address, value, sizeof(int), step_size, increment, iterations_count);
 				}
 
 				break;
 
 			case CODE_TYPE_LOAD_POINTER:
 				log_printf("### Load Pointer ###\n");
-				parseRegularCode(codes, &codeType, &pointer, &valueSize, &bytesIndex, &address, &value, &valueBytes);
-				loadedPointer = loadPointer(address, value);
+				parse_regular_code(codes, &code_type, &pointer, &value_size, &bytes_index, &address, &value, &value_bytes);
+				loaded_pointer = loadPointer(address, value);
 				break;
 
 			case CODE_TYPE_ADD_OFFSET_TO_POINTER:;
 				log_printf("### Add To Pointer ###\n");
-				bytesIndex += 3;
-				int pointerOffset = readRealInteger(&codes[bytesIndex]);
-				loadedPointer += pointerOffset;
-				log_printf("[ADD_POINTER]: *%p += %p\n", (void *) (long) loadedPointer, (void *) (long) pointerOffset);
-				bytesIndex += sizeof(int);
+				bytes_index += 3;
+				int pointer_offset = read_real_integer(&codes[bytes_index]);
+				loaded_pointer += pointer_offset;
+				log_printf("[ADD_POINTER]: *%p += %p\n", (void *) (long) loaded_pointer, (void *) (long) pointer_offset);
+				bytes_index += sizeof(int);
 				break;
 
 			case CODE_TYPE_LOAD_POINTER_DIRECTLY:
 				log_printf("### Loading Pointer Directly ###\n");
-				bytesIndex += sizeof(int) - sizeof(char);
-				loadedPointer = readRealInteger(&codes[bytesIndex]);
-				log_printf("Loaded Pointer: %p\n", (void *) loadedPointer);
-				bytesIndex += sizeof(int);
+				bytes_index += sizeof(int) - sizeof(char);
+				loaded_pointer = read_real_integer(&codes[bytes_index]);
+				log_printf("Loaded Pointer: %p\n", (void *) loaded_pointer);
+				bytes_index += sizeof(int);
 				break;
 
 			case CODE_TYPE_EXECUTE_ASSEMBLY:
 				log_printf("### Execute Assembly ###\n");
-				bytesIndex++;
-				unsigned int assemblyLines = read_real_short(&codes[bytesIndex]);
-				unsigned int assemblyBytesCount = assemblyLines * CODE_LINE_BYTES;
-				bytesIndex += sizeof(short);
-				bytesIndex += sizeof(int);
-				value = &codes[bytesIndex];
-				bytesIndex += (assemblyLines * CODE_LINE_BYTES);
-				executeAssembly(value, assemblyBytesCount);
+				bytes_index++;
+				unsigned int assembly_lines = read_real_short(&codes[bytes_index]);
+				unsigned int assembly_bytes_count = assembly_lines * CODE_LINE_BYTES;
+				bytes_index += sizeof(short);
+				bytes_index += sizeof(int);
+				value = &codes[bytes_index];
+				bytes_index += (assembly_lines * CODE_LINE_BYTES);
+				execute_assembly(value, assembly_bytes_count);
 				break;
 
 			case CODE_TYPE_PERFORM_SYSTEM_CALL:
 				log_printf("### Perform System Call ###\n");
-				bytesIndex++;
-				value = &codes[bytesIndex];
-				bytesIndex += sizeof(short);
-				bytesIndex += sizeof(int);
-				executeSystemCall(read_real_short(value));
+				bytes_index++;
+				value = &codes[bytes_index];
+				bytes_index += sizeof(short);
+				bytes_index += sizeof(int);
+				execute_system_call(read_real_short(value));
 				break;
 
 			case CODE_TYPE_TERMINATOR:
 				log_printf("### Terminator ###\n");
-				bytesIndex += sizeof(terminatorCodeLine) - 1;
-				log_printf("[Before] Loaded pointer: %p\n", (void *) (long) loadedPointer);
-				log_printf("[Before] Condition flag: %i\n", conditionFlag);
-				applyTerminator();
-				log_printf("[After] Loaded pointer: %p\n", (void *) (long) loadedPointer);
-				log_printf("[After] Condition flag: %i\n", conditionFlag);
+				bytes_index += sizeof(terminator_code_line) - 1;
+				log_printf("[Before] Loaded pointer: %p\n", (void *) (long) loaded_pointer);
+				log_printf("[Before] Condition flag: %i\n", condition_flag);
+				apply_terminator();
+				log_printf("[After] Loaded pointer: %p\n", (void *) (long) loaded_pointer);
+				log_printf("[After] Condition flag: %i\n", condition_flag);
 				break;
 
 			case CODE_TYPE_NO_OPERATION:
 				log_printf("### No Operation ###\n");
-				bytesIndex += 3;
-				bytesIndex += sizeof(int);
+				bytes_index += 3;
+				bytes_index += sizeof(int);
 				log_print("[NO_OPERATION] Do nothing\n");
 				break;
 
 			case CODE_TYPE_TIMER_TERMINATION:
 				log_printf("### Timer Termination ###\n");
-				bytesIndex += sizeof(terminatorCodeLine) - 1;
+				bytes_index += sizeof(terminator_code_line) - 1;
 				log_print("[TIMER_TERMINATION] Executed\n");
 				break;
 
 			case CODE_TYPE_CORRUPTER:
 				log_printf("### Corrupter ###\n");
-				bytesIndex += 3;
+				bytes_index += 3;
 
-				unsigned char *beginning = &codes[bytesIndex];
-				log_printf("Beginning: %p\n", (void *) (long) readRealInteger(beginning));
-				bytesIndex += sizeof(int);
+				unsigned char *beginning = &codes[bytes_index];
+				log_printf("Beginning: %p\n", (void *) (long) read_real_integer(beginning));
+				bytes_index += sizeof(int);
 
-				unsigned char *end = &codes[bytesIndex];
-				log_printf("End: %p\n", (void *) (long) readRealInteger(end));
-				bytesIndex += sizeof(int);
+				unsigned char *end = &codes[bytes_index];
+				log_printf("End: %p\n", (void *) (long) read_real_integer(end));
+				bytes_index += sizeof(int);
 
-				unsigned char *searchValue = &codes[bytesIndex];
-				log_printf("Search value: %p\n", (void *) (long) readRealInteger(searchValue));
-				bytesIndex += sizeof(int);
+				unsigned char *search_value = &codes[bytes_index];
+				log_printf("Search value: %p\n", (void *) (long) read_real_integer(search_value));
+				bytes_index += sizeof(int);
 
-				unsigned char *replacementValue = &codes[bytesIndex];
-				log_printf("Replacement value: %p\n", (void *) (long) readRealInteger(replacementValue));
-				bytesIndex += sizeof(int);
+				unsigned char *replacement_value = &codes[bytes_index];
+				log_printf("Replacement value: %p\n", (void *) (long) read_real_integer(replacement_value));
+				bytes_index += sizeof(int);
 
-				bytesIndex += sizeof(int);
+				bytes_index += sizeof(int);
 
-				applyCorrupter(beginning, end, searchValue, replacementValue);
+				apply_corrupter(beginning, end, search_value, replacement_value);
 				break;
 
 				/*
@@ -651,7 +655,7 @@ void runCodeHandlerInternal(unsigned char *codes, int codesLength) {
 				 */
 			case CODE_TYPE_SEARCH_TEMPLATE:
 				log_printf("### Search Template ###\n");
-				apply_search_template_code_type(codes, &codesLength, &bytesIndex);
+				apply_search_template_code_type(codes, &codes_length, &bytes_index);
 
 				break;
 
@@ -668,49 +672,49 @@ void runCodeHandlerInternal(unsigned char *codes, int codesLength) {
 				*/
 			case CODE_TYPE_PROCEDURE_CALL:
 				log_printf("### Remote Procedure Call ###\n");
-				bytesIndex = handleProcedureCall(codes, bytesIndex);
+				bytes_index = handle_procedure_call(codes, bytes_index);
 
 				break;
 
 			default:;
 #define ERROR_BUFFER_SIZE 100
-				char errorMessageBuffer[ERROR_BUFFER_SIZE];
-				snprintf(errorMessageBuffer, ERROR_BUFFER_SIZE, "Unhandled code type: %i\n", codeType);
-				OSFatal(errorMessageBuffer);
+				char error_message_buffer[ERROR_BUFFER_SIZE];
+				snprintf(error_message_buffer, ERROR_BUFFER_SIZE, "Unhandled code type: %i\n", code_type);
+				OSFatal(error_message_buffer);
 				break;
 		}
 
 		// Those have been consumed
-		codesLength -= bytesIndex;
+		codes_length -= bytes_index;
 
 		// Is not supposed to happen
-		if (codesLength < 0) {
-			char errorMessageBuffer[ERROR_BUFFER_SIZE];
-			snprintf(errorMessageBuffer, ERROR_BUFFER_SIZE, "Negative length: %i", codesLength);
-			OSFatal(errorMessageBuffer);
+		if (codes_length < 0) {
+			char error_message_buffer[ERROR_BUFFER_SIZE];
+			snprintf(error_message_buffer, ERROR_BUFFER_SIZE, "Negative length: %i", codes_length);
+			OSFatal(error_message_buffer);
 		}
 
-		if (codesLength % CODE_LINE_BYTES != 0) {
-			char errorMessageBuffer[ERROR_BUFFER_SIZE];
-			snprintf(errorMessageBuffer, ERROR_BUFFER_SIZE, "Illegal code length: %i", codesLength);
-			OSFatal(errorMessageBuffer);
+		if (codes_length % CODE_LINE_BYTES != 0) {
+			char error_Message_buffer[ERROR_BUFFER_SIZE];
+			snprintf(error_Message_buffer, ERROR_BUFFER_SIZE, "Illegal code length: %i", codes_length);
+			OSFatal(error_Message_buffer);
 		}
 
 		printf("\n");
-		codes = codes + bytesIndex;
+		codes = codes + bytes_index;
 	}
 
 	// One full code handler execution is done
-	codeHandlerExecutionsCount++;
+	code_handler_executions_count++;
 }
 
 void initialize() {
-	applyTerminator();
-	applyTimerReset();
-	initializeGeckoRegisters();
+	apply_terminator();
+	apply_timer_reset();
+	initialize_gecko_registers();
 }
 
-void runCodeHandler(unsigned char *codes, int length) {
+void run_code_handler(unsigned char *codes, int length) {
 	initialize();
-	runCodeHandlerInternal(codes, length);
+	run_code_handler_internal(codes, length);
 }

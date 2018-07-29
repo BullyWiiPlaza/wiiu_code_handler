@@ -1,7 +1,7 @@
 #include "code_handler_enumerations.h"
 
-int getBytes(enum ValueSize valueSize) {
-	switch (valueSize) {
+int get_bytes(enum ValueSize value_size) {
+	switch (value_size) {
 		case VALUE_SIZE_EIGHT_BIT:
 			return sizeof(char);
 

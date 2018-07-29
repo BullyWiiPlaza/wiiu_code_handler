@@ -3,4 +3,4 @@
 #include "code_handler_functions.h"
 #include "general/endian.h"
 
-void executeSystemCall(unsigned short value);
+void execute_system_call(unsigned short value);

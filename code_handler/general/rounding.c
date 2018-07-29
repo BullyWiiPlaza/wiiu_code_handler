@@ -1,6 +1,6 @@
 #include "rounding.h"
 
-int roundUp(int value, int multiple) {
+int round_up(int value, int multiple) {
 	if (value % multiple == 0) {
 		value++;
 	}

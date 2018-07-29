@@ -13,7 +13,7 @@
 	int increment = 1;
 	int stepSize = 8;
 	int iterations = 4;
-	skipWriteMemory((unsigned char *) &a, (unsigned char *) &value, 4, (unsigned char *) &stepSize,
+	skip_write_memory((unsigned char *) &a, (unsigned char *) &value, 4, (unsigned char *) &stepSize,
 					(unsigned char *) &increment, (unsigned char *) &iterations);
 
 	enableRealMemoryAccesses = false;
@@ -202,7 +202,7 @@ int main() {
 			0x88, 0x88, 0x88, 0x88
 	};
 
-	runCodeHandler(codes, sizeof(codes));
+	run_code_handler(codes, sizeof(codes));
 
 	return EXIT_SUCCESS;
 }

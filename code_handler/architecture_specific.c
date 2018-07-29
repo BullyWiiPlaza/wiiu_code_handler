@@ -3,7 +3,7 @@
 #include "architecture_specific.h"
 
 __attribute__((__may_alias__))
-void executeSystemCall(unsigned short value) {
+void execute_system_call(unsigned short value) {
 	/*asm volatile
 	(
 	"li 0, %0\n\t"
@@ -27,5 +27,5 @@ void executeSystemCall(unsigned short value) {
 	memcpy(&assembly[2], &realShort, sizeof(short));
 
 	log_printf("[SYSTEM_CALL] Executing system call value 0x%04x...\n", value);
-	executeAssembly(assembly, sizeof(assembly));
+	execute_assembly(assembly, sizeof(assembly));
 }

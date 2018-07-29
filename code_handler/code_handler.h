@@ -1,3 +1,3 @@
 #pragma once
 
-void runCodeHandler(unsigned char *codes, int length);
+void run_code_handler(unsigned char *codes, int length);

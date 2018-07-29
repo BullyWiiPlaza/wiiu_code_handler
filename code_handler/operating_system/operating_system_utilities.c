@@ -2,7 +2,7 @@
 
 #include <stdlib.h>
 
-void kernelCopyData(unsigned char *destination, unsigned char *source, int size) {
+void kernel_copy_data(unsigned char *destination, unsigned char *source, int size) {
 	memcpy(destination, source, (size_t) size);
 }
 

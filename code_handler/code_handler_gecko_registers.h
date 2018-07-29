@@ -5,33 +5,33 @@
 
 #define GECKO_REGISTERS_COUNT 8
 
-extern unsigned int integerRegisters[GECKO_REGISTERS_COUNT];
-extern float floatRegisters[GECKO_REGISTERS_COUNT];
+extern unsigned int integer_registers[GECKO_REGISTERS_COUNT];
+extern float float_registers[GECKO_REGISTERS_COUNT];
 
-void initializeGeckoRegisters();
+void initialize_gecko_registers();
 
-void loadInteger(const unsigned char *registerIndexPointer, enum ValueSize valueSize,
-				 unsigned char *addressPointer);
+void load_integer(const unsigned char *registerIndexPointer, enum ValueSize valueSize,
+				  unsigned char *addressPointer);
 
-void storeInteger(const unsigned char *registerIndexPointer,
-				  enum ValueSize valueSize, unsigned char *pointerToAddress);
+void store_integer(const unsigned char *register_index_pointer,
+				   enum ValueSize value_size, unsigned char *pointer_to_address);
 
-void loadFloat(const unsigned char *registerIndexPointer, unsigned char *addressPointer);
+void load_float(const unsigned char *register_index_pointer, unsigned char *address_pointer);
 
-void storeFloat(const unsigned char *registerIndexPointer, unsigned char *pointerToAddress);
+void store_float(const unsigned char *register_index_pointer, unsigned char *pointer_to_address);
 
-void applyFloatRegisterOperation(const unsigned char *firstRegisterIndexPointer,
-								 const unsigned char *secondRegisterIndexPointer,
-								 enum FloatRegisterOperation registerOperation);
+void apply_float_register_operation(const unsigned char *first_register_index_pointer,
+									const unsigned char *second_register_index_pointer,
+									enum FloatRegisterOperation register_operation);
 
-void applyFloatDirectValueOperation(const unsigned char *firstRegisterIndexPointer,
-									unsigned char *valuePointer,
-									enum FloatDirectValueOperation directValueOperation);
+void applyFloat_direct_value_operation(const unsigned char *first_register_index_pointer,
+									   unsigned char *value_pointer,
+									   enum FloatDirectValueOperation direct_value_operation);
 
-void applyIntegerRegisterOperation(const unsigned char *firstRegisterIndexPointer,
-								   const unsigned char *secondRegisterIndexPointer,
-								   enum IntegerRegisterOperation registerOperation);
+void apply_integer_register_operation(const unsigned char *first_register_index_pointer,
+									  const unsigned char *second_register_index_pointer,
+									  enum IntegerRegisterOperation register_operation);
 
-void applyIntegerDirectValueOperation(const unsigned char *firstRegisterIndexPointer,
-									  unsigned char *valuePointer,
-									  enum IntegerDirectValueOperation directValueOperation);
+void apply_integer_direct_value_operation(const unsigned char *first_register_index_pointer,
+										  unsigned char *value_pointer,
+										  enum IntegerDirectValueOperation direct_value_operation);

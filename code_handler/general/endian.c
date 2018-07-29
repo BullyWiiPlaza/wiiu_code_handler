@@ -7,12 +7,12 @@ int is_big_endian() {
 	union {
 		uint32_t integer;
 		char character[4];
-	} dummyUnion = {0x01000000};
+	} dummy_union = {0x01000000};
 
-	return dummyUnion.character[0];
+	return dummy_union.character[0];
 }
 
-unsigned int getBigEndian(unsigned int value) {
+unsigned int get_big_endian(unsigned int value) {
 	if (!is_big_endian()) {
 		return htonl(value);
 	}
@@ -26,8 +26,8 @@ unsigned int getBigEndian(unsigned int value) {
 	return (val << 32) | ((val >> 32) & 0xFFFFFFFFULL);
 }*/
 
-unsigned int readRealInteger(const unsigned char *value) {
-	return getBigEndian(*(unsigned int *) value);
+unsigned int read_real_integer(const unsigned char *value) {
+	return get_big_endian(*(unsigned int *) value);
 }
 
 /*unsigned long long int getLong(const unsigned char *value) {
@@ -41,27 +41,27 @@ unsigned int readRealInteger(const unsigned char *value) {
 }*/
 
 unsigned short read_real_short(const unsigned char *value) {
-	unsigned int read = getBigEndian(*(unsigned int *) (value - (sizeof(int) - sizeof(short))));
+	unsigned int read = get_big_endian(*(unsigned int *) (value - (sizeof(int) - sizeof(short))));
 	read &= 0x0000FFFF;
 
 	return (unsigned short) read;
 }
 
-unsigned char readRealByte(const unsigned char *value) {
-	unsigned int read = getBigEndian(*(unsigned int *) (value - sizeof(int) - sizeof(char)));
+unsigned char read_real_byte(const unsigned char *value) {
+	unsigned int read = get_big_endian(*(unsigned int *) (value - sizeof(int) - sizeof(char)));
 	read &= 0x000000FF;
 
 	return (unsigned char) read;
 }
 
 /* Used to get a big endian character pointer to an arbitrary int, short, char */
-unsigned char *getCharacterPointer(unsigned int *value, int valueSize) {
+unsigned char *get_character_pointer(unsigned int *value, int value_size) {
 	if (!is_big_endian()) {
 		*value = htonl(*value);
 	}
 
-	unsigned char *characterPointer = (unsigned char *) value;
-	characterPointer += sizeof(int) - valueSize;
+	unsigned char *character_pointer = (unsigned char *) value;
+	character_pointer += sizeof(int) - value_size;
 
-	return characterPointer;
+	return character_pointer;
 }

@@ -4,31 +4,31 @@
 #include <stdint.h>
 #include "code_handler_enumerations.h"
 
-extern bool realMemoryAccessesAreEnabled;
+extern bool real_memory_accesses_are_enabled;
 
-unsigned long callAddress(uintptr_t realAddress, const unsigned int *arguments);
+unsigned long call_address(uintptr_t real_address, const unsigned int *arguments);
 
-uintptr_t searchForTemplate(const unsigned char *searchTemplate, unsigned int length,
-							uintptr_t address, uintptr_t endAddress,
-							int stepSize, unsigned short targetMatchIndex,
-							bool *templateFound);
+uintptr_t search_for_template(const unsigned char *search_template, unsigned int length,
+							  uintptr_t address, uintptr_t end_address,
+							  int stepSize, unsigned short target_match_index,
+							  bool *template_found);
 
-void skipWriteMemory(unsigned char *address, unsigned char *value,
-					 int valueLength, unsigned char *stepSize,
-					 unsigned char *increment, unsigned char *iterationsCount);
+void skip_write_memory(unsigned char *address, unsigned char *value,
+					   int value_length, unsigned char *step_size,
+					   unsigned char *increment, unsigned char *iterations_count);
 
-void writeString(unsigned char *address, unsigned char *value, int valueLength);
+void write_string(unsigned char *address, unsigned char *value, int value_length);
 
-void writeValue(unsigned char *address, const unsigned char *value, int valueLength);
+void write_value(unsigned char *address, const unsigned char *value, int value_length);
 
-bool compareValue(unsigned char *address, unsigned char *value, const enum ValueSize *valueSize,
-				  unsigned char *upperValue, int valueLength, enum ComparisonType comparisonType);
+bool compare_value(unsigned char *address, unsigned char *value, const enum ValueSize *value_size,
+				   unsigned char *upper_value, int value_length, enum ComparisonType comparison_type);
 
-void executeAssembly(unsigned char *instructions, unsigned int size);
+void execute_assembly(unsigned char *instructions, unsigned int size);
 
-void applyCorrupter(unsigned char *beginning, unsigned char *end, unsigned char *searchValue,
-					unsigned char *replacementValue);
+void apply_corrupter(unsigned char *beginning, unsigned char *end, unsigned char *search_value,
+					 unsigned char *replacement_value);
 
-unsigned int readRealValue(enum ValueSize valueSize, unsigned char *pointerToAddress);
+unsigned int read_real_value(enum ValueSize value_size, unsigned char *pointer_to_address);
 
 uintptr_t loadPointer(unsigned char *address, unsigned char *value);

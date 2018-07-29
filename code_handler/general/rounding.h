@@ -1,3 +1,3 @@
 #pragma once
 
-int roundUp(int value, int multiple);
+int round_up(int value, int multiple);
