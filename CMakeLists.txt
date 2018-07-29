@@ -2,9 +2,9 @@ cmake_minimum_required(VERSION 3.6)
 project(code_handler)
 
 # Compiler flags -O3
-add_definitions("-Werror -Wall -Wextra")
+# add_definitions("-Werror -Wall -Wextra")
 
-set(CMAKE_CXX_STANDARD 11)
+set(CMAKE_CXX_STANDARD 17)
 
 set(SOURCE_FILES
         main.c

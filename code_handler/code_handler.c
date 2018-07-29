@@ -84,7 +84,7 @@ int handleProcedureCall(const unsigned char *codes, int bytesIndex) {
 
 		log_printf("Return Value: %llx\n", (unsigned long long int) returnValue);
 		integerRegisters[lowerDestinationRegisterIndex] = (unsigned int) returnValue;
-		integerRegisters[upperDestinationRegisterIndex] = (unsigned int) (returnValue >> 32);
+		integerRegisters[upperDestinationRegisterIndex] = (unsigned int) (returnValue >> 32u);
 
 		free(arguments);
 	}
@@ -142,7 +142,7 @@ void parseRegularCode(unsigned char *codes, const enum CodeType *codeType,
 					  enum Pointer *pointer, enum ValueSize *valueSize,
 					  int *bytesIndex, unsigned char **address,
 					  unsigned char **value, int *valueBytes) {
-	char pointerAndValueSize = codes[(*bytesIndex)];
+	unsigned char pointerAndValueSize = codes[(*bytesIndex)];
 	(*pointer) = (enum Pointer) getUpperNibble(pointerAndValueSize);
 	log_printf("Pointer: %i\n", (*pointer));
 

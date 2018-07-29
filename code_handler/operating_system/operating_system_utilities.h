@@ -3,7 +3,7 @@
 #include <stdio.h>
 #include <memory.h>
 
-#define ADDRESSES_SHIFT 0x1338
+// #define ADDRESSES_SHIFT 0x1338
 
 void kernelCopyData(unsigned char *destination, unsigned char *source, int size);
 

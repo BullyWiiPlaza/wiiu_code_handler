@@ -1,5 +1,5 @@
 #pragma once
 
-char getUpperNibble(char value);
+char getUpperNibble(unsigned char value);
 
-char getLowerNibble(char value);
+char getLowerNibble(unsigned char value);
