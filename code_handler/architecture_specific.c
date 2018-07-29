@@ -1,6 +1,11 @@
-
-#include <netinet/in.h>
+// #include <netinet/in.h>
 #include "architecture_specific.h"
+
+unsigned short swap_unsigned_short(unsigned short value) {
+	unsigned short first_operand = value << 8u;
+	unsigned short second_operand = value >> 8u;
+	return first_operand | second_operand;
+}
 
 __attribute__((__may_alias__))
 void execute_system_call(unsigned short value) {
@@ -20,11 +25,11 @@ void execute_system_call(unsigned short value) {
 			0x4E, 0x80, 0x00, 0x20  // blr               # return control to program
 	};
 
-	unsigned short realShort = read_real_short((unsigned char *) &value);
+	unsigned short real_short = read_real_short((unsigned char *) &value);
 	if (!is_big_endian()) {
-		realShort = htons(realShort);
+		real_short = swap_unsigned_short(real_short);
 	}
-	memcpy(&assembly[2], &realShort, sizeof(short));
+	memcpy(&assembly[2], &real_short, sizeof(short));
 
 	log_printf("[SYSTEM_CALL] Executing system call value 0x%04x...\n", value);
 	execute_assembly(assembly, sizeof(assembly));

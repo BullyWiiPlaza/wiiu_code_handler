@@ -1,6 +1,5 @@
 #include "endian.h"
 #include <stdint.h>
-#include <netinet/in.h>
 
 // Detect whether the system is using big endian byte order
 int is_big_endian() {
@@ -12,9 +11,14 @@ int is_big_endian() {
 	return dummy_union.character[0];
 }
 
+unsigned int swap_unsigned_int(unsigned int value) {
+	value = ((value << 8u) & 0xFF00FF00u) | ((value >> 8u) & 0xFF00FFu);
+	return (value << 16u) | (value >> 16u);
+}
+
 unsigned int get_big_endian(unsigned int value) {
 	if (!is_big_endian()) {
-		return htonl(value);
+		return swap_unsigned_int(value);
 	}
 
 	return value;
@@ -57,7 +61,7 @@ unsigned char read_real_byte(const unsigned char *value) {
 /* Used to get a big endian character pointer to an arbitrary int, short, char */
 unsigned char *get_character_pointer(unsigned int *value, int value_size) {
 	if (!is_big_endian()) {
-		*value = htonl(*value);
+		*value = swap_unsigned_int(*value);
 	}
 
 	unsigned char *character_pointer = (unsigned char *) value;

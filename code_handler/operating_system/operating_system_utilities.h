@@ -13,4 +13,13 @@ void OSFatal(const char *message);
 
 #define log_print(string) printf("[%s] %s@L%d: " string,  __FILENAME__, __func__, __LINE__)
 
+#if defined(WIN32)
+
+// TODO Fix for Microsoft compilers
+#define log_printf(format_string, arguments...) printf(format_string, ##arguments)
+
+#else
+
 #define log_printf(format_string, arguments...) printf("[%s] %s@L%d: " format_string,  __FILENAME__, __func__, __LINE__, ##arguments)
+
+#endif
