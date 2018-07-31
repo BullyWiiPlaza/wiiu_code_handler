@@ -6,7 +6,7 @@ bool real_memory_accesses_are_enabled = false;
 
 unsigned long call_address(uintptr_t real_address, const unsigned int *arguments) {
 	typedef unsigned long functionType(int, int, int, int, int, int, int, int);
-	functionType *function = (functionType *) real_address;
+	auto function = (functionType *) real_address;
 	unsigned long returnValue = 0x1111111122222222;
 
 	if (real_memory_accesses_are_enabled) {
@@ -52,18 +52,20 @@ void incrementValue(int valueLength, unsigned int realIncrement, unsigned char *
 			modifiableValue[3] += realIncrement;
 			break;
 
-		case sizeof(short):;
+		case sizeof(short): {
 			short incrementedShortValue = read_real_short(modifiableValue);
 			incrementedShortValue += realIncrement;
 			incrementedShortValue = read_real_short((unsigned char *) &incrementedShortValue);
 			memcpy(&modifiableValue[sizeof(int) - sizeof(short)], &incrementedShortValue, sizeof(short));
+		}
 			break;
 
-		case sizeof(int):;
+		case sizeof(int): {
 			int incrementedIntValue = read_real_integer(modifiableValue);
 			incrementedIntValue += realIncrement;
 			incrementedIntValue = read_real_integer((unsigned char *) &incrementedIntValue);
 			memcpy(&modifiableValue[sizeof(int) - sizeof(int)], &incrementedIntValue, sizeof(int));
+		}
 			break;
 
 		default:
@@ -84,7 +86,7 @@ void skip_write_memory(unsigned char *address, unsigned char *value,
 	for (int iterationIndex = 0; iterationIndex < realIterationsCount; iterationIndex++) {
 		unsigned int byteIndex = sizeof(int) - value_length;
 		for (; byteIndex < sizeof(int); byteIndex++) {
-			unsigned int *targetAddress = (unsigned int *) (((unsigned char *) realAddress) + byteIndex);
+			auto targetAddress = (unsigned int *) (((unsigned char *) realAddress) + byteIndex);
 			unsigned char byte = modifiableValue[byteIndex];
 			log_printf("[SKIP_WRITE]: *%p = 0x%x\n", (void *) targetAddress, byte);
 
@@ -100,7 +102,8 @@ void skip_write_memory(unsigned char *address, unsigned char *value,
 
 void write_string(unsigned char *address, unsigned char *value, int value_length) {
 	uintptr_t realAddress = read_real_integer(address);
-	log_printf("[STRING_WRITE]: *%p = 0x%x {Length: %i}\n", (void *) realAddress, *(unsigned int *) value, value_length);
+	log_printf("[STRING_WRITE]: *%p = 0x%x {Length: %i}\n", (void *) realAddress, *(unsigned int *) value,
+			   value_length);
 
 	if (real_memory_accesses_are_enabled) {
 		memcpy(address, value, (size_t) value_length);
@@ -163,7 +166,7 @@ bool compare_value(unsigned char *address, unsigned char *value,
 			OSFatal("Unhandled value size");
 	}
 
-	bool bitOperatorResult = 0;
+	bool bitOperatorResult = false;
 
 	switch (comparison_type) {
 		case COMPARISON_TYPE_AND:
@@ -209,12 +212,13 @@ bool compare_value(unsigned char *address, unsigned char *value,
 		case COMPARISON_TYPE_OR:
 			return bitOperatorResult;
 
-		case COMPARISON_TYPE_VALUE_BETWEEN:;
+		case COMPARISON_TYPE_VALUE_BETWEEN: {
 			unsigned int readValue = read_real_value(*value_size, address);
 			uintptr_t lowerLimit = realValue;
 			log_printf("[COMPARE]: (*%p > %p) && (*%p < %p) {Last %i bytes}\n", (void *) realAddress,
 					   (void *) lowerLimit, (void *) realAddress, (void *) realUpperLimit, value_length);
 			return readValue > lowerLimit && readValue < realUpperLimit;
+		}
 
 		default:
 			OSFatal("Unhandled comparison type");
@@ -234,7 +238,7 @@ void execute_assembly(unsigned char *instructions, unsigned int size) {
 		kernel_copy_data((unsigned char *) destinationAddress, instructions, size);
 
 		// Execute the assembly from there
-		void (*function)() = (void (*)()) destinationAddress;
+		auto function = (void (*)()) destinationAddress;
 		function();
 
 		// Clear the memory contents again
@@ -275,8 +279,9 @@ void apply_corrupter(unsigned char *beginning, unsigned char *end, unsigned char
 }
 
 unsigned int read_real_value(enum ValueSize value_size, unsigned char *pointer_to_address) {
-	unsigned char *addressPointer = (unsigned char *) (uintptr_t) read_real_integer(pointer_to_address);
-	log_printf("[GET_VALUE] Getting value from %p {Value Size: %i}...\n", (void *) addressPointer, get_bytes(value_size));
+	auto addressPointer = (unsigned char *) (uintptr_t) read_real_integer(pointer_to_address);
+	log_printf("[GET_VALUE] Getting value from %p {Value Size: %i}...\n", (void *) addressPointer,
+			   get_bytes(value_size));
 
 	if (real_memory_accesses_are_enabled) {
 		switch (value_size) {

@@ -1,5 +1,5 @@
 #include "endian.h"
-#include <stdint.h>
+#include <cstdint>
 
 // Detect whether the system is using big endian byte order
 int is_big_endian() {
@@ -64,7 +64,7 @@ unsigned char *get_character_pointer(unsigned int *value, int value_size) {
 		*value = swap_unsigned_int(*value);
 	}
 
-	unsigned char *character_pointer = (unsigned char *) value;
+	auto character_pointer = (unsigned char *) value;
 	character_pointer += sizeof(int) - value_size;
 
 	return character_pointer;

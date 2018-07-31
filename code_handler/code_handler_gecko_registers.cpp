@@ -42,7 +42,7 @@ void store_integer(const unsigned char *register_index_pointer,
 				   enum ValueSize value_size, unsigned char *pointer_to_address) {
 	int address_increment = get_address_increment(value_size);
 	int register_index = *register_index_pointer;
-	unsigned char *target_value = (unsigned char *) (integer_registers + register_index);
+	auto target_value = (unsigned char *) (integer_registers + register_index);
 	unsigned int value = 0;
 
 	switch (value_size) {
@@ -59,7 +59,7 @@ void store_integer(const unsigned char *register_index_pointer,
 			break;
 	}
 
-	unsigned char *address_pointer = (unsigned char *) (long) read_real_integer(pointer_to_address);
+	auto address_pointer = (unsigned char *) (long) read_real_integer(pointer_to_address);
 	log_printf("[STORE_INTEGER] Storing %p {Value Size: %i} at address %p...\n", (void *) (long) value,
 			   get_bytes(value_size), (void *) address_pointer);
 
@@ -80,7 +80,7 @@ void load_float(const unsigned char *register_index_pointer, unsigned char *addr
 void store_float(const unsigned char *register_index_pointer, unsigned char *pointer_to_address) {
 	int register_index = *register_index_pointer;
 	float value = float_registers[register_index];
-	unsigned char *address_pointer = (unsigned char *) (long) read_real_integer(pointer_to_address);
+	auto address_pointer = (unsigned char *) (long) read_real_integer(pointer_to_address);
 	log_printf("[STORE_FLOAT] Storing %.2f at address %p...\n", value, (void *) address_pointer);
 
 	if (real_memory_accesses_are_enabled) {

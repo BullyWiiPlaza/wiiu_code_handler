@@ -1,6 +1,6 @@
 #include "operating_system_utilities.h"
 
-#include <stdlib.h>
+#include <cstdlib>
 
 void kernel_copy_data(unsigned char *destination, unsigned char *source, int size) {
 	memcpy(destination, source, (size_t) size);

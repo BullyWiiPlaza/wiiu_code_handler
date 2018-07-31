@@ -1,35 +1,9 @@
-#include <stdlib.h>
+#include <cstdlib>
 #include "code_handler/code_handler.h"
 #include "code_handler/code_handler_enumerations.h"
+#include "code_handler/testing/benchmarking.h"
 
-/*void runRegressionTests() {
-	enableRealMemoryAccesses = true;
-
-	char array[100];
-	memset(array, 0, sizeof(array));
-	unsigned int a = (unsigned int) &array;
-	a = getInt((const unsigned char *) &a);
-	int value = 0x12345678;
-	int increment = 1;
-	int stepSize = 8;
-	int iterations = 4;
-	skip_write_memory((unsigned char *) &a, (unsigned char *) &value, 4, (unsigned char *) &stepSize,
-					(unsigned char *) &increment, (unsigned char *) &iterations);
-
-	enableRealMemoryAccesses = false;
-}*/
-
-int main() {
-	// runRegressionTests();
-
-/*#define LENGTH 4
-	char array[LENGTH] = {0, 0, 0, 0};
-	char array2[LENGTH] = {0, 0, 0, 0};
-	VirtualMemory memoryWrite = {0x12345678, LENGTH, (unsigned char *) array};
-	VirtualMemory memoryWrite2 = {0x12345678, LENGTH, (unsigned char *) array2};
-	bool equal = equals(memoryWrite, memoryWrite2);
-	log_printf("Equals: %i\n", equal);*/
-
+void test_code_handler() {
 	unsigned char codes[] = {
 			CODE_TYPE_RAM_WRITE,
 			0x02, 0x00, 0x00,
@@ -202,7 +176,44 @@ int main() {
 			0x88, 0x88, 0x88, 0x88
 	};
 
+	struct timeval starting_time{};
+	get_time(&starting_time);
+
 	run_code_handler(codes, sizeof(codes));
+
+	double elapsed_time = get_elapsed_time(&starting_time);
+	printf("The whole test has taken %.2lf ms.\n", elapsed_time);
+}
+
+/*void runRegressionTests() {
+	enableRealMemoryAccesses = true;
+
+	char array[100];
+	memset(array, 0, sizeof(array));
+	unsigned int a = (unsigned int) &array;
+	a = getInt((const unsigned char *) &a);
+	int value = 0x12345678;
+	int increment = 1;
+	int stepSize = 8;
+	int iterations = 4;
+	skip_write_memory((unsigned char *) &a, (unsigned char *) &value, 4, (unsigned char *) &stepSize,
+					(unsigned char *) &increment, (unsigned char *) &iterations);
+
+	enableRealMemoryAccesses = false;
+}*/
+
+int main() {
+	// runRegressionTests();
+
+/*#define LENGTH 4
+	char array[LENGTH] = {0, 0, 0, 0};
+	char array2[LENGTH] = {0, 0, 0, 0};
+	VirtualMemory memoryWrite = {0x12345678, LENGTH, (unsigned char *) array};
+	VirtualMemory memoryWrite2 = {0x12345678, LENGTH, (unsigned char *) array2};
+	bool equal = equals(memoryWrite, memoryWrite2);
+	log_printf("Equals: %i\n", equal);*/
+
+	test_code_handler();
 
 	return EXIT_SUCCESS;
 }
