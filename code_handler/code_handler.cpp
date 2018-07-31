@@ -3,7 +3,6 @@
 #include <climits>
 #include <cstdlib>
 #include <cstdint>
-#include <netinet/in.h>
 #include "operating_system/operating_system_utilities.h"
 #include "code_handler_functions.h"
 #include "general/endian.h"
@@ -102,7 +101,7 @@ void apply_search_template_code_type(const unsigned char *codes, int *length, in
 	log_printf("Start Address: %p\n", (void *) (uintptr_t) start_address);
 	(*bytes_index) += sizeof(short);
 	auto end_address = (unsigned int) (read_real_short(&codes[(*bytes_index)]) * 0x10000);
-	log_printf("End Address: %p\n", (void *) (int *) end_address);
+	log_printf("End Address: %p\n", (void *) (uintptr_t) end_address);
 	(*bytes_index) += sizeof(short);
 	const unsigned char *search_template = &codes[(*bytes_index)];
 	bool template_found = false;
@@ -125,7 +124,7 @@ void apply_search_template_code_type(const unsigned char *codes, int *length, in
 		log_printf("Found Address: %p\n", (void *) (int *) found_address);
 
 		// Get the byte order right
-		found_address = is_big_endian() ? found_address : htonl((uint32_t) found_address);
+		found_address = is_big_endian() ? found_address : swap_unsigned_int((uint32_t) found_address);
 	}
 
 	// Modify the code list by pasting the load pointer statement over the search code type

@@ -4,6 +4,8 @@ int is_big_endian();
 
 // unsigned long long int getLong(const unsigned char *value);
 
+unsigned int swap_unsigned_int(unsigned int value);
+
 unsigned int read_real_integer(const unsigned char *value);
 
 unsigned short read_real_short(const unsigned char *value);
